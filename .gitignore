@@ -6,6 +6,7 @@ static/audio/*.mp3
 static/videos/*.mp4
 static/output/*.mp4
 static/history.json
+static/app.db
 !static/audio/.gitkeep
 !static/videos/.gitkeep
 !static/output/.gitkeep

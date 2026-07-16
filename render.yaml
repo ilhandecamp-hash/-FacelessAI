@@ -14,3 +14,9 @@ services:
         sync: false
       - key: TTS_VOICE
         value: fr-FR-HenriNeural
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: SESSION_SECRET_KEY
+        generateValue: true
