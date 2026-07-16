@@ -282,129 +282,99 @@
 
       <!-- Hero + generator panel -->
       <div class="relative overflow-hidden hero-glow grain">
-        <main class="relative max-w-6xl mx-auto px-6 pt-16 pb-24 grid lg:grid-cols-[1.05fr_1fr] gap-14 items-start">
+        <main class="relative max-w-3xl mx-auto px-6 pt-20 pb-24 flex flex-col items-center">
 
-          <!-- Left: pitch -->
-          <div class="rise rise-1 lg:sticky lg:top-28">
+          <!-- Centered pitch -->
+          <div class="rise rise-1 text-center">
             <span class="inline-flex items-center gap-2 text-xs font-medium tracking-widest text-amber-400 uppercase">
               <span class="h-px w-6 bg-amber-400/60"></span>
               Studio de production automatisé
+              <span class="h-px w-6 bg-amber-400/60"></span>
             </span>
-            <h1 class="mt-5 font-display text-5xl sm:text-6xl font-semibold tracking-tight text-white leading-[1.05]">
-              Une idée.<br />
-              Une vidéo <span class="italic text-amber-400">prête à publier.</span>
+            <h1 class="mt-5 font-display text-4xl sm:text-5xl font-semibold tracking-tight text-white leading-[1.1]">
+              Une idée. Une vidéo <span class="italic text-amber-400">prête à publier.</span>
             </h1>
-            <p class="mt-6 text-lg text-ink-300 max-w-md leading-relaxed">
-              Écris un sujet. FacelessAI rédige le script, enregistre la voix off,
-              choisit une vidéo de fond et incruste les sous-titres — le tout
-              assemblé en une seule passe.
+            <p class="mt-4 text-lg text-ink-300 max-w-xl mx-auto leading-relaxed">
+              Écris un sujet : script, voix off, fond et sous-titres sont générés et montés en une seule passe.
             </p>
 
-            <div class="mt-9 flex items-center gap-8 font-mono-num text-sm">
-              <div>
-                <p class="text-2xl text-white font-semibold">4</p>
-                <p class="text-ink-400 mt-0.5">étapes automatisées</p>
-              </div>
-              <div class="h-8 w-px bg-white/10"></div>
-              <div>
-                <p class="text-2xl text-white font-semibold">~60s</p>
-                <p class="text-ink-400 mt-0.5">par génération</p>
-              </div>
-              <div class="h-8 w-px bg-white/10"></div>
-              <div>
-                <p class="text-2xl text-white font-semibold">0€</p>
-                <p class="text-ink-400 mt-0.5">coût d'usage</p>
-              </div>
-            </div>
-
-            <div class="waveform mt-10 flex items-end gap-[3px] h-10 opacity-70" aria-hidden="true">
-              <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+            <div class="waveform mt-8 flex items-end justify-center gap-[3px] h-8 opacity-60" aria-hidden="true">
               <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
               <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
               <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
             </div>
           </div>
 
-          <!-- Right: generator card -->
-          <div class="rise rise-2 w-full p-px rounded-2xl card-edge shadow-2xl shadow-black/60">
-            <div class="bg-ink-900 rounded-[15px] p-6 sm:p-7">
-              <div id="usage-banner" class="hidden mb-5 flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/[0.02] px-4 py-2.5 text-xs">
+          <!-- Central generator card -->
+          <div class="rise rise-2 w-full mt-10 p-px rounded-2xl card-edge shadow-2xl shadow-black/60">
+            <div class="bg-ink-900 rounded-[15px] p-5 sm:p-6">
+              <div id="usage-banner" class="hidden mb-4 flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/[0.02] px-4 py-2.5 text-xs">
                 <span id="usage-banner-text" class="text-ink-300"></span>
-                <a href="#section-tarifs" id="usage-banner-cta" class="hidden shrink-0 inline-flex items-center gap-1 font-semibold text-amber-400 hover:text-amber-300 transition">
+                <a href="/#section-tarifs" id="usage-banner-cta" class="hidden shrink-0 inline-flex items-center gap-1 font-semibold text-amber-400 hover:text-amber-300 transition">
                   👑 Passer Premium
                 </a>
               </div>
 
-              <form id="generate-form" class="flex flex-col gap-5">
-                <div>
-                  <label for="sujet" class="text-sm font-medium text-ink-200">Sujet de la vidéo</label>
+              <form id="generate-form" class="flex flex-col gap-4">
+                <!-- Prompt-style textarea with embedded submit button -->
+                <div class="relative">
                   <textarea
                     id="sujet"
                     name="sujet"
                     rows="3"
                     required
-                    placeholder="Ex : Les mystères des trous noirs, 3 astuces pour mieux dormir, l'histoire de Rome..."
-                    class="mt-2 w-full resize-none rounded-lg bg-ink-950 border border-white/10 px-4 py-3 text-[15px] text-ink-100 placeholder-ink-500 focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-amber-400/40 transition"
+                    placeholder="Plan un sujet, un script ou une vidéo..."
+                    class="w-full resize-none rounded-xl bg-ink-950 border border-white/10 px-4 py-4 pr-16 text-[15px] text-ink-100 placeholder-ink-500 focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-amber-400/40 transition"
                   ></textarea>
+                  <button
+                    type="submit"
+                    id="submit-btn"
+                    aria-label="Générer ma vidéo"
+                    class="absolute right-3 bottom-3 h-10 w-10 rounded-full bg-amber-400 hover:bg-amber-300 text-ink-950 flex items-center justify-center shadow-[0_1px_0_0_rgba(255,255,255,0.35)_inset] transition active:scale-[0.95] disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <svg id="btn-spinner" class="hidden spinner h-5 w-5" viewBox="0 0 24 24" fill="none">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                      <path class="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                    </svg>
+                    <svg id="btn-icon" class="h-4.5 w-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                      <line x1="12" y1="19" x2="12" y2="5"></line>
+                      <polyline points="5 12 12 5 19 12"></polyline>
+                    </svg>
+                  </button>
                 </div>
 
-                <div>
-                  <label for="voice-select" class="text-sm font-medium text-ink-200">Voix de la narration</label>
+                <!-- Compact settings row -->
+                <div class="flex flex-wrap items-center gap-2">
                   <select
                     id="voice-select"
                     name="voice"
-                    class="mt-2 w-full rounded-lg bg-ink-950 border border-white/10 px-4 py-3 text-sm text-ink-100 focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-amber-400/40 transition"
+                    class="rounded-lg bg-white/[0.03] border border-white/10 pl-3 pr-8 py-2 text-xs text-ink-200 focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-amber-400/40 transition cursor-pointer"
                   >
-                    <option value="">Chargement des voix...</option>
+                    <option value="">Voix...</option>
                   </select>
-                </div>
 
-                <div>
-                  <span class="text-sm font-medium text-ink-200">Format</span>
-                  <div id="orientation-group" class="mt-2 grid grid-cols-2 gap-2">
+                  <div id="orientation-group" class="flex items-center gap-1">
                     <!-- Boutons de format injectés en JS -->
                   </div>
-                </div>
 
-                <div>
-                  <span class="text-sm font-medium text-ink-200">Durée de la vidéo</span>
-                  <div id="duration-group" class="mt-2 grid grid-cols-4 gap-2">
+                  <div id="duration-group" class="flex items-center gap-1">
                     <!-- Boutons de durée injectés en JS -->
                   </div>
+
+                  <button
+                    type="button"
+                    id="multi-fond-toggle"
+                    aria-pressed="false"
+                    class="relative flex items-center gap-1.5 rounded-lg border px-2.5 py-2 text-xs font-medium transition"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg>
+                    Fonds multiples
+                    <span class="premium-crown hidden absolute -top-1.5 -right-1.5 text-[10px]">👑</span>
+                  </button>
                 </div>
-
-                <button
-                  type="button"
-                  id="multi-fond-toggle"
-                  aria-pressed="false"
-                  class="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/[0.02] px-4 py-3 text-left transition hover:bg-white/[0.05]"
-                >
-                  <span>
-                    <span class="flex items-center gap-1.5 text-sm font-medium text-ink-100">
-                      Fonds multiples
-                      <span class="premium-crown hidden text-xs">👑</span>
-                    </span>
-                    <span class="block text-xs text-ink-400 mt-0.5">Alterne entre plusieurs fonds au lieu d'un seul en boucle</span>
-                  </span>
-                  <span id="toggle-track" class="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full bg-white/10 transition">
-                    <span id="toggle-dot" class="inline-block h-4 w-4 translate-x-1 rounded-full bg-ink-300 transition"></span>
-                  </span>
-                </button>
-
-                <button
-                  type="submit"
-                  id="submit-btn"
-                  class="mt-1 inline-flex items-center justify-center gap-2 rounded-lg bg-amber-400 hover:bg-amber-300 text-ink-950 font-semibold py-3.5 px-6 shadow-[0_1px_0_0_rgba(255,255,255,0.35)_inset] transition active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <svg id="btn-spinner" class="hidden spinner h-5 w-5" viewBox="0 0 24 24" fill="none">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
-                  </svg>
-                  <span id="btn-label">Générer ma vidéo</span>
-                </button>
               </form>
 
-              <div id="status-box" class="hidden mt-6 pt-5 border-t border-white/[0.06]">
+              <div id="status-box" class="hidden mt-5 pt-4 border-t border-white/[0.06]">
                 <div class="flex items-center justify-between">
                   <div class="step-item flex items-center gap-2.5" data-step="0">
                     <span class="step-dot h-6 w-6 rounded-full border border-white/15 flex items-center justify-center shrink-0 transition-colors">
@@ -445,12 +415,29 @@
                 <p id="status-text" class="mt-4 text-sm text-ink-300 text-center">Initialisation...</p>
               </div>
 
-              <div id="error-box" class="hidden mt-5 rounded-lg border border-red-500/25 bg-red-500/10 text-red-300 text-sm px-4 py-3 text-left"></div>
+              <div id="error-box" class="hidden mt-4 rounded-lg border border-red-500/25 bg-red-500/10 text-red-300 text-sm px-4 py-3 text-left"></div>
             </div>
           </div>
 
-          <!-- Result (spans both columns when shown) -->
-          <div id="result-box" class="hidden lg:col-span-2 w-full mt-4 flex flex-col items-center gap-4">
+          <!-- Featured shortcuts: real presets, not fake features -->
+          <div class="rise rise-3 w-full mt-5 flex flex-wrap items-center gap-2 justify-center">
+            <span class="text-xs text-ink-500 mr-1">Idées :</span>
+            <button type="button" class="shortcut-chip inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.02] hover:bg-white/[0.06] hover:border-amber-400/30 px-3 py-1.5 text-xs text-ink-300 hover:text-white transition" data-preset="Un fait fascinant et méconnu sur l'espace">
+              🪐 Fait insolite
+            </button>
+            <button type="button" class="shortcut-chip inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.02] hover:bg-white/[0.06] hover:border-amber-400/30 px-3 py-1.5 text-xs text-ink-300 hover:text-white transition" data-preset="3 astuces simples pour être plus productif au quotidien">
+              💡 Astuces pratiques
+            </button>
+            <button type="button" class="shortcut-chip inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.02] hover:bg-white/[0.06] hover:border-amber-400/30 px-3 py-1.5 text-xs text-ink-300 hover:text-white transition" data-preset="Un événement historique méconnu mais fascinant">
+              🏛️ Histoire
+            </button>
+            <button type="button" class="shortcut-chip inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.02] hover:bg-white/[0.06] hover:border-amber-400/30 px-3 py-1.5 text-xs text-ink-300 hover:text-white transition" data-preset="Une théorie scientifique expliquée simplement">
+              🔬 Science
+            </button>
+          </div>
+
+          <!-- Result -->
+          <div id="result-box" class="hidden w-full mt-10 flex flex-col items-center gap-4">
             <h2 class="font-display text-xl font-semibold text-white">Ta vidéo est prête</h2>
             <video
               id="result-video"
@@ -554,7 +541,7 @@
     const form = document.getElementById("generate-form");
     const submitBtn = document.getElementById("submit-btn");
     const btnSpinner = document.getElementById("btn-spinner");
-    const btnLabel = document.getElementById("btn-label");
+    const btnIcon = document.getElementById("btn-icon");
     const statusBox = document.getElementById("status-box");
     const statusText = document.getElementById("status-text");
     const errorBox = document.getElementById("error-box");
@@ -562,10 +549,16 @@
     const resultVideo = document.getElementById("result-video");
     const downloadLink = document.getElementById("download-link");
     const multiFondToggle = document.getElementById("multi-fond-toggle");
-    const toggleTrack = document.getElementById("toggle-track");
-    const toggleDot = document.getElementById("toggle-dot");
     const sujetInput = document.getElementById("sujet");
     const voiceSelect = document.getElementById("voice-select");
+
+    document.querySelectorAll(".shortcut-chip").forEach((chip) => {
+      chip.addEventListener("click", () => {
+        sujetInput.value = chip.dataset.preset || "";
+        sujetInput.focus();
+        sujetInput.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+    });
 
     async function loadVoices() {
       try {
@@ -610,7 +603,7 @@
         const btn = document.createElement("button");
         btn.type = "button";
         btn.dataset.duration = key;
-        btn.className = "duration-chip rounded-lg border px-2 py-2.5 text-xs font-medium text-center transition relative";
+        btn.className = "duration-chip rounded-lg border px-2.5 py-2 text-xs font-medium text-center transition relative";
         btn.innerHTML = `${meta.label}${key !== "court" ? '<span class="premium-crown hidden absolute -top-1.5 -right-1.5 text-[10px]">👑</span>' : ""}`;
         btn.addEventListener("click", () => {
           selectedDuration = key;
@@ -672,7 +665,7 @@
         const btn = document.createElement("button");
         btn.type = "button";
         btn.dataset.orientation = key;
-        btn.className = "orientation-chip flex items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-xs font-medium transition relative";
+        btn.className = "orientation-chip flex items-center justify-center gap-1.5 rounded-lg border px-2.5 py-2 text-xs font-medium transition relative";
         const crown = key !== "portrait" ? '<span class="premium-crown hidden absolute -top-1.5 -right-1.5 text-[10px]">👑</span>' : "";
         btn.innerHTML = `${ORIENTATION_ICONS[key] || ""}<span>${ORIENTATION_SHORT_LABELS[key] || key}</span>${crown}`;
         btn.addEventListener("click", () => {
@@ -703,12 +696,12 @@
 
     function updateToggleStyles() {
       multiFondToggle.setAttribute("aria-pressed", String(multiFond));
-      toggleTrack.classList.toggle("bg-amber-400", multiFond);
-      toggleTrack.classList.toggle("bg-white/10", !multiFond);
-      toggleDot.classList.toggle("translate-x-6", multiFond);
-      toggleDot.classList.toggle("translate-x-1", !multiFond);
-      toggleDot.classList.toggle("bg-ink-950", multiFond);
-      toggleDot.classList.toggle("bg-ink-300", !multiFond);
+      multiFondToggle.classList.toggle("bg-amber-400", multiFond);
+      multiFondToggle.classList.toggle("text-ink-950", multiFond);
+      multiFondToggle.classList.toggle("border-amber-400", multiFond);
+      multiFondToggle.classList.toggle("bg-white/[0.03]", !multiFond);
+      multiFondToggle.classList.toggle("text-ink-200", !multiFond);
+      multiFondToggle.classList.toggle("border-white/10", !multiFond);
     }
 
     multiFondToggle.addEventListener("click", () => {
@@ -1067,8 +1060,9 @@
 
     function setLoading(isLoading) {
       submitBtn.disabled = isLoading;
+      submitBtn.title = isLoading ? "Génération en cours..." : "Générer ma vidéo";
       btnSpinner.classList.toggle("hidden", !isLoading);
-      btnLabel.textContent = isLoading ? "Génération en cours..." : "Générer ma vidéo";
+      btnIcon.classList.toggle("hidden", isLoading);
     }
 
     function cycleStatus() {
@@ -1111,6 +1105,9 @@
               "Connexion requise",
               data.error || "Tu as utilisé tes générations gratuites. Connecte-toi pour continuer."
             );
+          } else if (data.requires_premium) {
+            errorBox.innerHTML = `${data.error || "Cette option est réservée aux membres Premium."} <a href="/#section-tarifs" class="underline font-semibold text-amber-400 hover:text-amber-300">Passer Premium →</a>`;
+            errorBox.classList.remove("hidden");
           } else {
             errorBox.textContent = data.error || "Une erreur inattendue est survenue. Veuillez réessayer.";
             errorBox.classList.remove("hidden");
