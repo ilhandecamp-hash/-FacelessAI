@@ -16,3 +16,6 @@ static/app.db
 Thumbs.db
 .vscode/
 .idea/
+
+# Logs de dev local
+*.log
