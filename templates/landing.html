@@ -114,9 +114,9 @@
       </nav>
 
       <div class="flex items-center gap-2 shrink-0">
-        <a href="/auth/login" id="login-btn" class="hidden sm:inline-flex text-sm font-medium text-ink-200 hover:text-white px-3 py-2 rounded-md hover:bg-white/5 transition">
+        <button id="login-btn" type="button" class="hidden sm:inline-flex text-sm font-medium text-ink-200 hover:text-white px-3 py-2 rounded-md hover:bg-white/5 transition">
           Connexion
-        </a>
+        </button>
         <a href="/app" class="text-sm font-semibold text-ink-950 bg-amber-400 hover:bg-amber-300 px-4 py-2 rounded-md shadow-[0_1px_0_0_rgba(255,255,255,0.3)_inset] transition">
           Essayer gratuitement
         </a>
@@ -148,9 +148,9 @@
             Essayer gratuitement
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
           </a>
-          <a href="/auth/login" id="signup-btn-hero" class="text-sm font-medium text-ink-300 hover:text-white transition">
-            Pas encore de compte ? <span class="text-ink-100 underline decoration-white/20 underline-offset-4">Se connecter avec Google</span>
-          </a>
+          <button id="signup-btn-hero" type="button" class="text-sm font-medium text-ink-300 hover:text-white transition">
+            Pas encore de compte ? <span class="text-ink-100 underline decoration-white/20 underline-offset-4">Se connecter</span>
+          </button>
         </div>
 
         <div class="mt-11 flex items-center gap-8 font-mono-num text-sm">
@@ -362,7 +362,50 @@
     <span class="font-mono-num">Groq · edge-tts · Pexels · MoviePy</span>
   </footer>
 
+  <!-- Modale de choix du fournisseur de connexion -->
+  <div id="auth-modal" class="hidden fixed inset-0 z-40 flex items-center justify-center px-4">
+    <div id="auth-modal-backdrop" class="absolute inset-0 bg-black/75"></div>
+    <div class="relative w-full max-w-sm rounded-2xl border border-white/10 bg-ink-900 p-6 shadow-2xl shadow-black/60 text-center">
+      <h3 class="font-display text-lg font-semibold text-white">Se connecter</h3>
+      <p class="mt-2 text-sm text-ink-300 leading-relaxed">
+        Choisis un compte pour continuer à générer des vidéos et sauvegarder ton historique.
+      </p>
+      <a href="/auth/login" class="mt-6 flex items-center justify-center gap-2.5 w-full rounded-lg bg-white hover:bg-slate-100 text-ink-950 font-medium py-2.5 transition">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" viewBox="0 0 48 48">
+          <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l6-6C34.5 5.1 29.5 3 24 3 12.4 3 3 12.4 3 24s9.4 21 21 21 21-9.4 21-21c0-1.2-.1-2.3-.4-3.5z"/>
+          <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.5 15.1 18.9 12 24 12c3.1 0 5.8 1.1 8 3l6-6C34.5 5.1 29.5 3 24 3 16.3 3 9.7 7.3 6.3 14.7z"/>
+          <path fill="#4CAF50" d="M24 45c5.4 0 10.3-1.8 14-5.7l-6.5-5.4c-2 1.5-4.6 2.6-7.5 2.6-5.2 0-9.6-3.3-11.3-8l-6.6 5.1C9.6 40.6 16.3 45 24 45z"/>
+          <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.3-4.2 5.7l6.5 5.4C40.8 36.6 44 30.9 44 24c0-1.2-.1-2.3-.4-3.5z"/>
+        </svg>
+        Se connecter avec Google
+      </a>
+      <a href="/auth/github/login" class="mt-2 flex items-center justify-center gap-2.5 w-full rounded-lg bg-[#24292f] hover:bg-[#32383f] text-white font-medium py-2.5 transition">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.438 9.8 8.207 11.387.6.113.793-.26.793-.577v-2.017c-3.338.726-4.042-1.61-4.042-1.61-.546-1.387-1.333-1.757-1.333-1.757-1.09-.744.083-.729.083-.729 1.204.085 1.838 1.237 1.838 1.237 1.07 1.834 2.808 1.304 3.492.997.108-.775.42-1.305.762-1.605-2.665-.303-5.467-1.334-5.467-5.93 0-1.31.468-2.38 1.235-3.22-.123-.303-.535-1.524.117-3.176 0 0 1.008-.323 3.3 1.23a11.5 11.5 0 013.006-.404c1.02.005 2.047.138 3.007.404 2.29-1.553 3.297-1.23 3.297-1.23.653 1.652.242 2.873.118 3.176.77.84 1.233 1.91 1.233 3.22 0 4.61-2.807 5.624-5.48 5.92.432.372.816 1.103.816 2.222v3.293c0 .32.192.694.8.577C20.565 21.796 24 17.298 24 12c0-6.63-5.373-12-12-12z"/>
+        </svg>
+        Se connecter avec GitHub
+      </a>
+      <button id="auth-modal-close" type="button" class="mt-2 w-full rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-ink-100 font-medium py-2.5 transition">
+        Annuler
+      </button>
+    </div>
+  </div>
+
   <script>
+    // --- Modale de choix du fournisseur de connexion ---
+    const authModal = document.getElementById("auth-modal");
+    const authModalBackdrop = document.getElementById("auth-modal-backdrop");
+    const authModalClose = document.getElementById("auth-modal-close");
+
+    function openAuthModal() { authModal.classList.remove("hidden"); }
+    function closeAuthModal() { authModal.classList.add("hidden"); }
+
+    document.getElementById("login-btn").addEventListener("click", openAuthModal);
+    document.getElementById("signup-btn-hero").addEventListener("click", openAuthModal);
+    authModalClose.addEventListener("click", closeAuthModal);
+    authModalBackdrop.addEventListener("click", closeAuthModal);
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeAuthModal(); });
+
     // --- Scroll reveal ---
     const revealObserver = new IntersectionObserver(
       (entries) => {

@@ -62,8 +62,13 @@ def init_db() -> None:
         """)
 
 
-def upsert_user(google_id: str, email: str, name: str, picture: str | None) -> dict:
-    """Crée l'utilisateur s'il n'existe pas, ou met à jour ses infos de profil sinon."""
+def upsert_user(user_id: str, email: str, name: str, picture: str | None) -> dict:
+    """Crée l'utilisateur s'il n'existe pas, ou met à jour ses infos de profil sinon.
+
+    `user_id` est préfixé par le fournisseur (ex: "github:12345") pour les
+    utilisateurs Google (identifiant "sub" brut, déjà unique côté Google) afin
+    d'éviter toute collision entre espaces d'identifiants de deux fournisseurs.
+    """
     with _get_conn() as conn:
         conn.execute(
             """
@@ -71,9 +76,9 @@ def upsert_user(google_id: str, email: str, name: str, picture: str | None) -> d
             VALUES (?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET email = excluded.email, name = excluded.name, picture = excluded.picture
             """,
-            (google_id, email, name, picture, datetime.now(timezone.utc).isoformat()),
+            (user_id, email, name, picture, datetime.now(timezone.utc).isoformat()),
         )
-        row = conn.execute("SELECT * FROM users WHERE id = ?", (google_id,)).fetchone()
+        row = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
         return dict(row)
 
 

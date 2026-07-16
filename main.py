@@ -33,7 +33,15 @@ from starlette.middleware.sessions import SessionMiddleware
 from starlette.requests import Request
 
 from core import database
-from core.auth import get_current_user, is_google_configured, login_user, logout_user, oauth
+from core.auth import (
+    fetch_github_userinfo,
+    get_current_user,
+    is_github_configured,
+    is_google_configured,
+    login_user,
+    logout_user,
+    oauth,
+)
 from core.script_generator import DEFAULT_DURATION, DURATION_PRESETS, generate_script
 from core.video_composer import DEFAULT_ORIENTATION, compose_video
 from core.video_fetcher import fetch_background_videos
@@ -99,7 +107,7 @@ async def app_page(request: Request):
     return templates.TemplateResponse("app.html", {"request": request})
 
 
-# --- Authentification Google OAuth ---
+# --- Authentification Google + GitHub OAuth ---
 
 
 @app.get("/auth/login")
@@ -121,9 +129,36 @@ async def auth_callback(request: Request):
         raise HTTPException(status_code=400, detail="Impossible de récupérer les informations du compte Google.")
 
     user = database.upsert_user(
-        google_id=userinfo["sub"],
+        user_id=userinfo["sub"],
         email=userinfo["email"],
         name=userinfo.get("name", userinfo["email"]),
+        picture=userinfo.get("picture"),
+    )
+    login_user(request, user)
+    request.session.pop("anonymous_generations", None)
+    return RedirectResponse(url="/app")
+
+
+@app.get("/auth/github/login")
+async def auth_github_login(request: Request):
+    if not is_github_configured():
+        raise HTTPException(
+            status_code=503,
+            detail="La connexion GitHub n'est pas configurée sur ce serveur (GITHUB_CLIENT_ID/SECRET manquants).",
+        )
+    redirect_uri = request.url_for("auth_github_callback")
+    return await oauth.github.authorize_redirect(request, redirect_uri)
+
+
+@app.get("/auth/github/callback")
+async def auth_github_callback(request: Request):
+    token = await oauth.github.authorize_access_token(request)
+    userinfo = await fetch_github_userinfo(token)
+
+    user = database.upsert_user(
+        user_id=userinfo["sub"],
+        email=userinfo["email"],
+        name=userinfo["name"],
         picture=userinfo.get("picture"),
     )
     login_user(request, user)
@@ -140,7 +175,11 @@ async def auth_logout(request: Request):
 @app.get("/auth/me")
 async def auth_me(request: Request):
     user = get_current_user(request)
-    return {"user": user, "google_configured": is_google_configured()}
+    return {
+        "user": user,
+        "google_configured": is_google_configured(),
+        "github_configured": is_github_configured(),
+    }
 
 
 # --- Génération de vidéo ---
