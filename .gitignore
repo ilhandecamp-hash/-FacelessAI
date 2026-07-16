@@ -1,0 +1,17 @@
+venv/
+__pycache__/
+*.pyc
+.env
+static/audio/*.mp3
+static/videos/*.mp4
+static/output/*.mp4
+static/history.json
+!static/audio/.gitkeep
+!static/videos/.gitkeep
+!static/output/.gitkeep
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

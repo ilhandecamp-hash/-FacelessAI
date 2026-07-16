@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="fr" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FacelessAI — Studio de vidéos courtes, gratuit</title>
+  <meta name="description" content="Écris un sujet, FacelessAI rédige le script, enregistre la voix off, choisit un fond et monte la vidéo. 100% gratuit, sans inscription." />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            amber: { 300: "#f0c479", 400: "#e8a33d", 500: "#d68a1f", 600: "#b8710f" },
+            ink: {
+              950: "#0a0c10", 900: "#0e1116", 800: "#141821", 700: "#1b202c",
+              600: "#252b3a", 500: "#3a4257", 400: "#5b6478", 300: "#8891a3", 200: "#b7bec9",
+            },
+          },
+          fontFamily: {
+            display: ["Fraunces", "ui-serif", "Georgia", "serif"],
+            sans: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],
+            mono: ["'JetBrains Mono'", "ui-monospace", "SFMono-Regular", "monospace"],
+          },
+        },
+      },
+    };
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700;9..144,600italic&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    html { scroll-behavior: smooth; }
+    body { font-family: "Inter", sans-serif; background: #0a0c10; }
+    h1, h2, h3, .font-display { font-family: "Fraunces", ui-serif, serif; text-wrap: balance; }
+    .font-mono-num { font-family: "JetBrains Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+
+    .grain::before {
+      content: "";
+      position: absolute; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 0;
+    }
+    .hero-glow {
+      background:
+        radial-gradient(65% 55% at 20% -5%, rgba(232, 163, 61, 0.20), transparent 65%),
+        radial-gradient(45% 40% at 90% 10%, rgba(232, 163, 61, 0.10), transparent 70%),
+        radial-gradient(50% 50% at 50% 100%, rgba(232, 163, 61, 0.06), transparent 70%);
+    }
+    .card-edge { background: linear-gradient(155deg, rgba(232,163,61,0.22), rgba(255,255,255,0.03) 40%, rgba(255,255,255,0.02)); }
+
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-thumb { background: #2a3140; border-radius: 8px; }
+    ::selection { background: rgba(232, 163, 61, 0.35); color: #fff; }
+
+    /* --- Entrance choreography --- */
+    @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+    .rise { animation: rise 0.7s cubic-bezier(0.16,1,0.3,1) both; }
+    .rise-1 { animation-delay: 0.05s; } .rise-2 { animation-delay: 0.15s; }
+    .rise-3 { animation-delay: 0.25s; } .rise-4 { animation-delay: 0.35s; }
+
+    /* --- Scroll reveal for sections below the fold --- */
+    .reveal { opacity: 0; transform: translateY(18px); transition: opacity 0.7s cubic-bezier(0.16,1,0.3,1), transform 0.7s cubic-bezier(0.16,1,0.3,1); }
+    .reveal.is-visible { opacity: 1; transform: translateY(0); }
+    @media (prefers-reduced-motion: reduce) {
+      .rise, .reveal { animation: none !important; opacity: 1 !important; transform: none !important; transition: none !important; }
+    }
+
+    /* --- Waveform ambient --- */
+    .waveform span {
+      display: inline-block; width: 3px; border-radius: 2px;
+      background: linear-gradient(to top, #e8a33d, #f0c479);
+      animation: wave 2.2s ease-in-out infinite;
+    }
+    .waveform span:nth-child(4n+1) { height: 40%; animation-delay: 0s; }
+    .waveform span:nth-child(4n+2) { height: 75%; animation-delay: 0.15s; }
+    .waveform span:nth-child(4n+3) { height: 30%; animation-delay: 0.3s; }
+    .waveform span:nth-child(4n+4) { height: 90%; animation-delay: 0.45s; }
+    .waveform span:nth-child(3n) { animation-duration: 1.8s; }
+    .waveform span:nth-child(5n) { animation-duration: 2.6s; }
+    @keyframes wave { 0%, 100% { transform: scaleY(0.4); opacity: 0.6; } 50% { transform: scaleY(1); opacity: 1; } }
+    @media (prefers-reduced-motion: reduce) { .waveform span { animation: none; transform: scaleY(0.7); } }
+
+    /* --- Phone mockup: subtle drift --- */
+    @keyframes drift { 0%, 100% { transform: translateY(0) rotate(-1.2deg); } 50% { transform: translateY(-10px) rotate(-0.4deg); } }
+    .phone-drift { animation: drift 7s ease-in-out infinite; }
+    @media (prefers-reduced-motion: reduce) { .phone-drift { animation: none; } }
+
+    /* --- Feature card lift --- */
+    .feature-card { transition: background-color 0.25s ease, transform 0.25s ease, border-color 0.25s ease; }
+    .feature-card:hover { background-color: #171b24; transform: translateY(-3px); }
+    .feature-card:hover .feature-index { color: #f0c479; }
+
+    /* --- Timeline (how it works) --- */
+    .timeline-dot { box-shadow: 0 0 0 4px #0a0c10; }
+  </style>
+</head>
+<body class="min-h-screen bg-ink-950 text-ink-200">
+
+  <!-- Top bar -->
+  <header class="sticky top-0 z-20 border-b border-white/[0.06] bg-ink-950/85 backdrop-blur">
+    <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
+      <div class="flex items-center gap-2.5 shrink-0">
+        <div class="h-7 w-7 rounded-md bg-amber-400 flex items-center justify-center font-display font-semibold text-ink-950 text-base">F</div>
+        <span class="font-display font-semibold tracking-tight whitespace-nowrap text-white text-[15px]">FacelessAI</span>
+      </div>
+
+      <nav class="hidden sm:flex items-center gap-7 text-sm text-ink-300">
+        <a href="#comment-ca-marche" class="hover:text-white transition">Comment ça marche</a>
+        <a href="#section-fonctionnalites" class="hover:text-white transition">Fonctionnalités</a>
+        <a href="#section-tarifs" class="hover:text-white transition">Tarifs</a>
+        <a href="#section-a-propos" class="hover:text-white transition">À propos</a>
+      </nav>
+
+      <div class="flex items-center gap-2 shrink-0">
+        <button id="login-btn" type="button" class="hidden sm:inline-flex text-sm font-medium text-ink-200 hover:text-white px-3 py-2 rounded-md hover:bg-white/5 transition">
+          Connexion
+        </button>
+        <a href="/app" class="text-sm font-semibold text-ink-950 bg-amber-400 hover:bg-amber-300 px-4 py-2 rounded-md shadow-[0_1px_0_0_rgba(255,255,255,0.3)_inset] transition">
+          Essayer gratuitement
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero -->
+  <section class="relative overflow-hidden hero-glow grain">
+    <div class="relative max-w-6xl mx-auto px-6 pt-20 pb-28 grid lg:grid-cols-[1.1fr_0.9fr] gap-16 items-center">
+
+      <div class="rise rise-1">
+        <span class="inline-flex items-center gap-2 text-xs font-medium tracking-widest text-amber-400 uppercase">
+          <span class="h-px w-6 bg-amber-400/60"></span>
+          Studio de production automatisé
+        </span>
+        <h1 class="mt-6 font-display text-5xl sm:text-6xl lg:text-7xl font-semibold tracking-tight text-white leading-[1.02]">
+          Une idée.<br />
+          Une vidéo <span class="italic text-amber-400">prête à publier.</span>
+        </h1>
+        <p class="mt-7 text-lg text-ink-300 max-w-lg leading-relaxed">
+          Écris un sujet. L'IA rédige le script, enregistre la voix off, choisit un
+          fond libre de droits et incruste les sous-titres — assemblés en une seule
+          vidéo verticale, prête pour TikTok, Shorts ou Reels.
+        </p>
+
+        <div class="mt-9 flex flex-wrap items-center gap-4">
+          <a href="/app" class="inline-flex items-center gap-2 rounded-lg bg-amber-400 hover:bg-amber-300 text-ink-950 font-semibold py-3.5 px-7 shadow-[0_1px_0_0_rgba(255,255,255,0.35)_inset] transition active:scale-[0.99]">
+            Essayer gratuitement
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+          </a>
+          <button id="signup-btn-hero" type="button" class="text-sm font-medium text-ink-300 hover:text-white transition">
+            Pas encore de compte ? <span class="text-ink-100 underline decoration-white/20 underline-offset-4">Bientôt disponible</span>
+          </button>
+        </div>
+
+        <div class="mt-11 flex items-center gap-8 font-mono-num text-sm">
+          <div>
+            <p class="text-2xl text-white font-semibold">4</p>
+            <p class="text-ink-400 mt-0.5">étapes automatisées</p>
+          </div>
+          <div class="h-8 w-px bg-white/10"></div>
+          <div>
+            <p class="text-2xl text-white font-semibold">~60s</p>
+            <p class="text-ink-400 mt-0.5">par génération</p>
+          </div>
+          <div class="h-8 w-px bg-white/10"></div>
+          <div>
+            <p class="text-2xl text-white font-semibold">0€</p>
+            <p class="text-ink-400 mt-0.5">coût d'usage</p>
+          </div>
+        </div>
+
+        <div class="waveform mt-9 flex items-end gap-[3px] h-8 opacity-60" aria-hidden="true">
+          <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+          <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+          <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+        </div>
+      </div>
+
+      <!-- Phone mockup: a real video produced by the pipeline itself -->
+      <div class="rise rise-2 relative flex justify-center lg:justify-end">
+        <div class="phone-drift relative w-[260px] sm:w-[300px] aspect-[9/16] rounded-[2rem] border border-white/10 bg-ink-900 p-2 shadow-2xl shadow-black/70">
+          <div class="relative h-full w-full rounded-[1.6rem] overflow-hidden bg-black">
+            <video
+              class="absolute inset-0 h-full w-full object-cover"
+              src="/static/demo/hero-demo.mp4"
+              autoplay
+              muted
+              loop
+              playsinline
+              preload="auto"
+            ></video>
+
+            <!-- top chrome -->
+            <div class="absolute top-3 left-0 right-0 flex justify-center z-10">
+              <div class="h-5 w-24 rounded-full bg-black/40"></div>
+            </div>
+
+            <!-- bottom UI chrome, like a real vertical video player -->
+            <div class="absolute bottom-0 left-0 right-0 p-4 flex items-center justify-between z-10 bg-gradient-to-t from-black/60 to-transparent">
+              <div class="flex items-center gap-2">
+                <div class="h-8 w-8 rounded-full bg-amber-400 flex items-center justify-center text-ink-950 font-display font-semibold text-xs">F</div>
+                <span class="text-white text-xs font-medium">facelessai.mp4</span>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <span class="h-1.5 w-1.5 rounded-full bg-white/70"></span>
+                <span class="h-1.5 w-1.5 rounded-full bg-white/40"></span>
+                <span class="h-1.5 w-1.5 rounded-full bg-white/40"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- floating status chip, echoes the real generator's stepper -->
+        <div class="rise rise-3 hidden sm:flex absolute -left-6 bottom-16 items-center gap-2.5 rounded-xl border border-white/10 bg-ink-900/95 backdrop-blur px-4 py-3 shadow-2xl shadow-black/60">
+          <span class="h-2 w-2 rounded-full bg-emerald-400"></span>
+          <span class="text-xs text-ink-200 font-medium">Montage terminé</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Comment ça marche : real sequence, numbering earns its place -->
+  <section id="comment-ca-marche" class="scroll-mt-20 border-t border-white/[0.06] py-24 px-6">
+    <div class="max-w-5xl mx-auto">
+      <span class="reveal text-xs font-medium tracking-widest text-amber-400 uppercase">Comment ça marche</span>
+      <h2 class="reveal mt-3 font-display text-3xl sm:text-4xl font-semibold tracking-tight text-white">Du sujet à la vidéo, en une passe</h2>
+
+      <div class="reveal mt-14 relative">
+        <div class="hidden md:block absolute top-3 left-3 right-3 h-px bg-white/10"></div>
+        <div class="grid md:grid-cols-4 gap-10 md:gap-6">
+          <div class="relative pl-8 md:pl-0">
+            <div class="md:mb-6 h-2.5 w-2.5 rounded-full bg-amber-400 timeline-dot absolute md:static left-0 top-1.5"></div>
+            <p class="font-mono-num text-xs text-amber-400 mt-0 md:mt-0">Étape 1</p>
+            <h3 class="mt-1.5 font-display font-semibold text-white text-lg">Tu écris un sujet</h3>
+            <p class="mt-2 text-sm text-ink-300 leading-relaxed">Une phrase suffit — l'IA (Groq) rédige un script de voix off percutant, calibré pour une vidéo courte.</p>
+          </div>
+          <div class="relative pl-8 md:pl-0">
+            <div class="md:mb-6 h-2.5 w-2.5 rounded-full bg-amber-400 timeline-dot absolute md:static left-0 top-1.5"></div>
+            <p class="font-mono-num text-xs text-amber-400">Étape 2</p>
+            <h3 class="mt-1.5 font-display font-semibold text-white text-lg">La voix off s'enregistre</h3>
+            <p class="mt-2 text-sm text-ink-300 leading-relaxed">edge-tts synthétise le script avec une voix française naturelle, au choix parmi plusieurs timbres.</p>
+          </div>
+          <div class="relative pl-8 md:pl-0">
+            <div class="md:mb-6 h-2.5 w-2.5 rounded-full bg-amber-400 timeline-dot absolute md:static left-0 top-1.5"></div>
+            <p class="font-mono-num text-xs text-amber-400">Étape 3</p>
+            <h3 class="mt-1.5 font-display font-semibold text-white text-lg">Un fond est choisi</h3>
+            <p class="mt-2 text-sm text-ink-300 leading-relaxed">Pexels fournit une ou plusieurs vidéos de fond libres de droits, assorties au sujet.</p>
+          </div>
+          <div class="relative pl-8 md:pl-0">
+            <div class="md:mb-6 h-2.5 w-2.5 rounded-full bg-amber-400 timeline-dot absolute md:static left-0 top-1.5"></div>
+            <p class="font-mono-num text-xs text-amber-400">Étape 4</p>
+            <h3 class="mt-1.5 font-display font-semibold text-white text-lg">Le montage s'assemble</h3>
+            <p class="mt-2 text-sm text-ink-300 leading-relaxed">MoviePy superpose fond, voix et sous-titres incrustés — ta vidéo est prête à télécharger.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Fonctionnalités -->
+  <section id="section-fonctionnalites" class="scroll-mt-20 border-t border-white/[0.06] py-24 px-6">
+    <div class="max-w-6xl mx-auto">
+      <span class="reveal text-xs font-medium tracking-widest text-amber-400 uppercase">Fonctionnalités</span>
+      <h2 class="reveal mt-3 font-display text-3xl sm:text-4xl font-semibold tracking-tight text-white">Tout le pipeline, automatisé</h2>
+      <p class="reveal mt-3 text-ink-300 max-w-xl">Chaque génération enchaîne quatre étapes, sans configuration ni clé à gérer.</p>
+
+      <div class="reveal mt-12 grid sm:grid-cols-2 lg:grid-cols-4 gap-px bg-white/[0.06] rounded-2xl overflow-hidden border border-white/[0.06]">
+        <div class="feature-card bg-ink-900 p-6 text-left">
+          <p class="feature-index font-mono-num text-xs text-amber-400/70 mb-4 transition-colors">01</p>
+          <h3 class="font-display font-semibold text-white text-lg">Script par IA</h3>
+          <p class="mt-2 text-sm text-ink-300 leading-relaxed">Un texte de voix off percutant généré à partir de ton sujet, via Groq.</p>
+        </div>
+        <div class="feature-card bg-ink-900 p-6 text-left">
+          <p class="feature-index font-mono-num text-xs text-amber-400/70 mb-4 transition-colors">02</p>
+          <h3 class="font-display font-semibold text-white text-lg">Voix off naturelle</h3>
+          <p class="mt-2 text-sm text-ink-300 leading-relaxed">Plusieurs voix françaises et francophones au choix, via edge-tts.</p>
+        </div>
+        <div class="feature-card bg-ink-900 p-6 text-left">
+          <p class="feature-index font-mono-num text-xs text-amber-400/70 mb-4 transition-colors">03</p>
+          <h3 class="font-display font-semibold text-white text-lg">Fonds libres de droits</h3>
+          <p class="mt-2 text-sm text-ink-300 leading-relaxed">Vidéos de fond assorties au sujet, simples ou multiples, via Pexels.</p>
+        </div>
+        <div class="feature-card bg-ink-900 p-6 text-left">
+          <p class="feature-index font-mono-num text-xs text-amber-400/70 mb-4 transition-colors">04</p>
+          <h3 class="font-display font-semibold text-white text-lg">Sous-titres incrustés</h3>
+          <p class="mt-2 text-sm text-ink-300 leading-relaxed">Montage automatique, prêt pour TikTok, Shorts et Reels.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Tarifs -->
+  <section id="section-tarifs" class="scroll-mt-20 border-t border-white/[0.06] py-24 px-6">
+    <div class="max-w-5xl mx-auto grid md:grid-cols-2 gap-14 items-center">
+      <div class="reveal">
+        <span class="text-xs font-medium tracking-widest text-amber-400 uppercase">Tarifs</span>
+        <h2 class="mt-3 font-display text-3xl sm:text-4xl font-semibold tracking-tight text-white">Gratuit, sans limite cachée</h2>
+        <p class="mt-4 text-ink-300 max-w-md leading-relaxed">
+          FacelessAI s'appuie uniquement sur des API et bibliothèques gratuites.
+          Aucune carte bancaire, aucun abonnement, aucun quota surprise.
+        </p>
+        <a href="/app" class="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-amber-400 hover:text-amber-300 transition">
+          Commencer maintenant
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+        </a>
+      </div>
+
+      <div class="reveal rounded-2xl border border-amber-400/25 bg-ink-900 p-8">
+        <p class="text-xs font-semibold text-amber-400 uppercase tracking-widest">Formule unique</p>
+        <p class="mt-3 font-display text-5xl font-semibold text-white">0 €</p>
+        <ul class="mt-7 space-y-3 text-sm text-ink-200">
+          <li class="flex items-center gap-2.5">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-amber-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            Génération de vidéos illimitée
+          </li>
+          <li class="flex items-center gap-2.5">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-amber-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            Choix de la voix et des fonds
+          </li>
+          <li class="flex items-center gap-2.5">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-amber-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            Historique de tes générations
+          </li>
+          <li class="flex items-center gap-2.5">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-amber-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            Aucune inscription requise
+          </li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- À propos -->
+  <section id="section-a-propos" class="scroll-mt-20 border-t border-white/[0.06] py-24 px-6">
+    <div class="reveal max-w-2xl mx-auto text-center">
+      <span class="text-xs font-medium tracking-widest text-amber-400 uppercase">À propos</span>
+      <h2 class="mt-3 font-display text-3xl sm:text-4xl font-semibold tracking-tight text-white">Un prototype 100% open-source</h2>
+      <p class="mt-4 text-ink-300 leading-relaxed">
+        FacelessAI est construit avec FastAPI, Tailwind CSS et des outils gratuits
+        (Groq, edge-tts, Pexels, MoviePy). Les comptes utilisateurs et la sauvegarde
+        cloud arrivent dans une prochaine version.
+      </p>
+    </div>
+  </section>
+
+  <!-- Final CTA -->
+  <section class="border-t border-white/[0.06] py-24 px-6">
+    <div class="reveal max-w-2xl mx-auto text-center">
+      <h2 class="font-display text-3xl sm:text-4xl font-semibold tracking-tight text-white">
+        Ta prochaine vidéo commence par <span class="italic text-amber-400">une phrase.</span>
+      </h2>
+      <a href="/app" class="mt-8 inline-flex items-center gap-2 rounded-lg bg-amber-400 hover:bg-amber-300 text-ink-950 font-semibold py-3.5 px-7 shadow-[0_1px_0_0_rgba(255,255,255,0.35)_inset] transition active:scale-[0.99]">
+        Essayer gratuitement
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+      </a>
+    </div>
+  </section>
+
+  <footer class="max-w-6xl mx-auto px-6 py-10 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-white/[0.06] text-xs text-ink-400">
+    <span>© 2026 FacelessAI — Aucun coût, aucune carte bancaire requise.</span>
+    <span class="font-mono-num">Groq · edge-tts · Pexels · MoviePy</span>
+  </footer>
+
+  <!-- Modale "Bientôt disponible" -->
+  <div id="auth-modal" class="hidden fixed inset-0 z-40 flex items-center justify-center px-4">
+    <div id="auth-modal-backdrop" class="absolute inset-0 bg-black/75"></div>
+    <div class="relative w-full max-w-sm rounded-2xl border border-white/10 bg-ink-900 p-6 shadow-2xl shadow-black/60 text-center">
+      <div class="mx-auto h-12 w-12 rounded-full bg-amber-400/15 flex items-center justify-center mb-4">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <polyline points="12 6 12 12 16 14"></polyline>
+        </svg>
+      </div>
+      <h3 id="auth-modal-title" class="font-display text-lg font-semibold text-white">Bientôt disponible</h3>
+      <p id="auth-modal-text" class="mt-2 text-sm text-ink-300 leading-relaxed">
+        Les comptes utilisateurs arrivent prochainement. Pour l'instant, FacelessAI fonctionne sans inscription — génère librement tes vidéos.
+      </p>
+      <a href="/app" class="mt-4 block w-full rounded-lg bg-amber-400 hover:bg-amber-300 text-ink-950 font-semibold py-2.5 transition">
+        Essayer sans compte
+      </a>
+      <button id="auth-modal-close" type="button" class="mt-2 w-full rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-ink-100 font-medium py-2.5 transition">
+        Compris
+      </button>
+    </div>
+  </div>
+
+  <script>
+    // --- Modale "Bientôt disponible" ---
+    const authModal = document.getElementById("auth-modal");
+    const authModalBackdrop = document.getElementById("auth-modal-backdrop");
+    const authModalClose = document.getElementById("auth-modal-close");
+
+    function openAuthModal() { authModal.classList.remove("hidden"); }
+    function closeAuthModal() { authModal.classList.add("hidden"); }
+
+    document.getElementById("login-btn").addEventListener("click", openAuthModal);
+    document.getElementById("signup-btn-hero").addEventListener("click", openAuthModal);
+    authModalClose.addEventListener("click", closeAuthModal);
+    authModalBackdrop.addEventListener("click", closeAuthModal);
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeAuthModal(); });
+
+    // --- Scroll reveal ---
+    const revealObserver = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("is-visible");
+            revealObserver.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.15, rootMargin: "0px 0px -60px 0px" }
+    );
+    document.querySelectorAll(".reveal").forEach((el) => revealObserver.observe(el));
+  </script>
+</body>
+</html>

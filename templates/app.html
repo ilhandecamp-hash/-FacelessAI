@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="fr" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FacelessAI — Studio de vidéos courtes</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            amber: {
+              300: "#f0c479",
+              400: "#e8a33d",
+              500: "#d68a1f",
+              600: "#b8710f",
+            },
+            ink: {
+              950: "#0a0c10",
+              900: "#0e1116",
+              800: "#141821",
+              700: "#1b202c",
+              600: "#252b3a",
+              500: "#3a4257",
+              400: "#5b6478",
+              300: "#8891a3",
+              200: "#b7bec9",
+            },
+          },
+          fontFamily: {
+            display: ["Fraunces", "ui-serif", "Georgia", "serif"],
+            sans: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],
+            mono: ["'JetBrains Mono'", "ui-monospace", "SFMono-Regular", "monospace"],
+          },
+        },
+      },
+    };
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    html { scroll-behavior: smooth; }
+    body { font-family: "Inter", sans-serif; background: #0a0c10; }
+    h1, h2, h3, .font-display { font-family: "Fraunces", ui-serif, serif; text-wrap: balance; }
+    .font-mono-num { font-family: "JetBrains Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+
+    /* Grain texture — quiet, gives the near-black ground some depth instead of flat void */
+    .grain::before {
+      content: "";
+      position: absolute; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .hero-glow {
+      background:
+        radial-gradient(60% 50% at 15% 0%, rgba(232, 163, 61, 0.16), transparent 65%),
+        radial-gradient(40% 35% at 85% 15%, rgba(232, 163, 61, 0.08), transparent 70%);
+    }
+
+    .card-edge {
+      background: linear-gradient(155deg, rgba(232,163,61,0.18), rgba(255,255,255,0.03) 40%, rgba(255,255,255,0.02));
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner { animation: spin 0.9s linear infinite; }
+
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .rise { animation: rise 0.6s cubic-bezier(0.16, 1, 0.3, 1) both; }
+    .rise-1 { animation-delay: 0.05s; }
+    .rise-2 { animation-delay: 0.12s; }
+    .rise-3 { animation-delay: 0.19s; }
+
+    @media (prefers-reduced-motion: reduce) {
+      .rise, .spinner { animation: none; }
+    }
+
+    /* Stepper de progression */
+    .step-dot { background: transparent; }
+    .step-item.is-active .step-dot { background: rgba(232, 163, 61, 0.15); border-color: rgba(232, 163, 61, 0.5); }
+    .step-item.is-active .step-idle { display: none; }
+    .step-item.is-active .step-spin { display: block; border-top-color: #e8a33d; border-color: rgba(232,163,61,0.25); }
+    .step-item.is-active .step-label { color: #f0c479; }
+    .step-item.is-done .step-dot { background: #e8a33d; border-color: #e8a33d; }
+    .step-item.is-done .step-idle,
+    .step-item.is-done .step-spin { display: none; }
+    .step-item.is-done .step-check { display: block; }
+    .step-item.is-done .step-label { color: #8891a3; }
+    .step-line.is-done { background: #e8a33d; }
+
+    /* Scroll reveal */
+    .reveal { opacity: 0; transform: translateY(16px); transition: opacity 0.7s cubic-bezier(0.16,1,0.3,1), transform 0.7s cubic-bezier(0.16,1,0.3,1); }
+    .reveal.is-visible { opacity: 1; transform: translateY(0); }
+    @media (prefers-reduced-motion: reduce) {
+      .reveal { opacity: 1; transform: none; transition: none; }
+    }
+
+    /* Feature card lift */
+    .feature-card { transition: background-color 0.25s ease, transform 0.25s ease; }
+    .feature-card:hover { background-color: #171b24; transform: translateY(-2px); }
+    .feature-card:hover .feature-index { color: #f0c479; }
+
+    /* Ambient waveform — a quiet nod to the voice-over engine, not just decoration */
+    .waveform span {
+      display: inline-block;
+      width: 3px;
+      border-radius: 2px;
+      background: linear-gradient(to top, #e8a33d, #f0c479);
+      animation: wave 2.2s ease-in-out infinite;
+    }
+    .waveform span:nth-child(4n+1) { height: 40%; animation-delay: 0s; }
+    .waveform span:nth-child(4n+2) { height: 75%; animation-delay: 0.15s; }
+    .waveform span:nth-child(4n+3) { height: 30%; animation-delay: 0.3s; }
+    .waveform span:nth-child(4n+4) { height: 90%; animation-delay: 0.45s; }
+    .waveform span:nth-child(3n) { animation-duration: 1.8s; }
+    .waveform span:nth-child(5n) { animation-duration: 2.6s; }
+    @keyframes wave {
+      0%, 100% { transform: scaleY(0.4); opacity: 0.6; }
+      50% { transform: scaleY(1); opacity: 1; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .waveform span { animation: none; transform: scaleY(0.7); }
+    }
+
+    /* Sidebar collapse */
+    #sidebar { transition: width 0.2s ease; }
+    #sidebar.collapsed { width: 5rem; }
+    #sidebar.collapsed .sidebar-label,
+    #sidebar.collapsed .sidebar-section-label,
+    #sidebar.collapsed #account-meta { display: none; }
+    #sidebar.collapsed #new-video-btn { justify-content: center; padding-left: 0; padding-right: 0; }
+    #sidebar.collapsed #account-btn { justify-content: center; }
+    #sidebar.collapsed #sidebar-top { flex-direction: column; gap: 0.5rem; justify-content: center; }
+    #sidebar.collapsed #logo-group { padding-left: 0; justify-content: center; }
+
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-thumb { background: #2a3140; border-radius: 8px; }
+    ::selection { background: rgba(232, 163, 61, 0.35); color: #fff; }
+  </style>
+</head>
+<body class="min-h-screen bg-ink-950 text-ink-200">
+
+  <div class="flex min-h-screen">
+
+    <!-- Sidebar -->
+    <aside id="sidebar" class="hidden md:flex w-72 shrink-0 flex-col border-r border-white/[0.06] bg-ink-900 h-screen sticky top-0">
+
+      <div id="sidebar-top" class="px-3 pt-5 pb-3 flex items-center justify-between">
+        <div id="logo-group" class="flex items-center gap-2.5 px-2 min-w-0">
+          <div class="h-7 w-7 rounded-md bg-amber-400 flex items-center justify-center font-display font-semibold text-ink-950 text-base shrink-0">F</div>
+          <span class="sidebar-label font-display font-semibold tracking-tight whitespace-nowrap text-white text-[15px]">FacelessAI</span>
+        </div>
+        <button id="sidebar-toggle" type="button" aria-label="Réduire la barre latérale" class="h-8 w-8 rounded-md flex items-center justify-center text-ink-400 hover:bg-white/5 hover:text-white transition shrink-0">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="4" width="18" height="16" rx="2"></rect>
+            <line x1="10" y1="4" x2="10" y2="20"></line>
+          </svg>
+        </button>
+      </div>
+
+      <div class="px-3 pb-2">
+        <button id="new-video-btn" type="button" class="w-full flex items-center gap-2.5 rounded-lg border border-white/10 bg-white/[0.03] hover:bg-white/[0.06] hover:border-amber-400/30 px-3.5 py-2.5 text-sm font-medium text-ink-100 transition">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0 text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          <span class="sidebar-label whitespace-nowrap">Nouvelle vidéo</span>
+        </button>
+      </div>
+
+      <div class="sidebar-section-label px-5 pt-4 pb-1">
+        <span class="text-[11px] font-semibold tracking-widest uppercase text-ink-400">Historique</span>
+      </div>
+
+      <div id="history-empty" class="sidebar-label px-5 text-sm text-ink-400">
+        Aucune vidéo générée pour le moment.
+      </div>
+
+      <div id="history-groups" class="flex-1 overflow-y-auto px-3 pb-2 flex flex-col gap-3"></div>
+
+      <div class="relative border-t border-white/[0.06] p-2 mt-auto">
+        <div id="account-menu" class="hidden absolute bottom-full left-2 right-2 mb-1 rounded-lg border border-white/10 bg-ink-800 shadow-2xl shadow-black/50 overflow-hidden">
+          <button id="account-settings-btn" type="button" class="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-ink-200 hover:bg-white/5 transition text-left">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 005 15a1.65 1.65 0 00-1.51-1H3.4a2 2 0 110-4h.09A1.65 1.65 0 005 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.6a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09A1.65 1.65 0 0015 4.6a1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09A1.65 1.65 0 0019 15z"></path></svg>
+            Paramètres
+          </button>
+          <a href="/#section-a-propos" id="account-about-link" class="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-ink-200 hover:bg-white/5 transition text-left">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+            À propos
+          </a>
+          <div class="h-px bg-white/[0.06]"></div>
+          <button id="account-logout-btn" type="button" class="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-ink-300 hover:bg-white/5 transition text-left">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+            Se déconnecter
+          </button>
+        </div>
+
+        <button id="account-btn" type="button" class="w-full flex items-center gap-2.5 rounded-lg px-2 py-2 hover:bg-white/5 transition">
+          <div class="h-8 w-8 rounded-full bg-ink-600 flex items-center justify-center text-xs font-semibold text-ink-100 shrink-0">U</div>
+          <div id="account-meta" class="min-w-0 flex-1 text-left">
+            <p class="text-sm text-ink-100 truncate">Utilisateur</p>
+            <p class="text-xs text-ink-400 truncate">Compte local</p>
+          </div>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Mobile history toggle -->
+    <button
+      id="mobile-history-btn"
+      type="button"
+      class="md:hidden fixed bottom-5 right-5 z-20 h-12 w-12 rounded-full bg-amber-400 shadow-lg shadow-amber-500/30 flex items-center justify-center text-ink-950 text-lg"
+      aria-label="Voir l'historique"
+    >
+      🕘
+    </button>
+
+    <!-- Mobile history drawer -->
+    <div id="mobile-history-drawer" class="hidden md:hidden fixed inset-0 z-30 bg-black/70">
+      <div class="absolute right-0 top-0 h-full w-80 max-w-[85vw] bg-ink-900 border-l border-white/10 flex flex-col">
+        <div class="px-5 py-4 flex items-center justify-between border-b border-white/10">
+          <span class="text-xs font-semibold tracking-widest uppercase text-ink-400">Historique</span>
+          <button id="mobile-history-close" class="text-ink-400 hover:text-white text-xl leading-none">&times;</button>
+        </div>
+        <div id="history-empty-mobile" class="px-5 pt-4 text-sm text-ink-400">
+          Aucune vidéo générée pour le moment.
+        </div>
+        <div id="history-groups-mobile" class="flex-1 overflow-y-auto px-3 py-4 flex flex-col gap-3"></div>
+      </div>
+    </div>
+
+    <!-- Main content -->
+    <div class="flex-1">
+      <!-- Top bar -->
+      <header class="sticky top-0 z-10 border-b border-white/[0.06] bg-ink-950/85 backdrop-blur">
+        <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
+          <a href="/" class="flex items-center gap-2.5 shrink-0 group">
+            <div class="h-7 w-7 rounded-md bg-amber-400 flex items-center justify-center font-display font-semibold text-ink-950 text-base">F</div>
+            <span class="font-display font-semibold tracking-tight whitespace-nowrap text-white text-[15px] group-hover:text-amber-300 transition">FacelessAI</span>
+          </a>
+
+          <div class="flex items-center gap-2 shrink-0">
+            <span class="hidden lg:inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded-full border border-white/10 bg-white/[0.03] text-ink-300 mr-1">
+              <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
+              100% gratuit
+            </span>
+            <a href="/" class="text-sm font-medium text-ink-300 hover:text-white px-3 py-2 rounded-md hover:bg-white/5 transition">
+              ← Accueil
+            </a>
+            <button id="login-btn" type="button" class="text-sm font-medium text-ink-200 hover:text-white px-3 py-2 rounded-md hover:bg-white/5 transition">
+              Connexion
+            </button>
+            <button id="signup-btn" type="button" class="text-sm font-semibold text-ink-950 bg-amber-400 hover:bg-amber-300 px-4 py-2 rounded-md shadow-[0_1px_0_0_rgba(255,255,255,0.3)_inset] transition">
+              Inscription
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <!-- Hero + generator panel -->
+      <div class="relative overflow-hidden hero-glow grain">
+        <main class="relative max-w-6xl mx-auto px-6 pt-16 pb-24 grid lg:grid-cols-[1.05fr_1fr] gap-14 items-start">
+
+          <!-- Left: pitch -->
+          <div class="rise rise-1 lg:sticky lg:top-28">
+            <span class="inline-flex items-center gap-2 text-xs font-medium tracking-widest text-amber-400 uppercase">
+              <span class="h-px w-6 bg-amber-400/60"></span>
+              Studio de production automatisé
+            </span>
+            <h1 class="mt-5 font-display text-5xl sm:text-6xl font-semibold tracking-tight text-white leading-[1.05]">
+              Une idée.<br />
+              Une vidéo <span class="italic text-amber-400">prête à publier.</span>
+            </h1>
+            <p class="mt-6 text-lg text-ink-300 max-w-md leading-relaxed">
+              Écris un sujet. FacelessAI rédige le script, enregistre la voix off,
+              choisit une vidéo de fond et incruste les sous-titres — le tout
+              assemblé en une seule passe.
+            </p>
+
+            <div class="mt-9 flex items-center gap-8 font-mono-num text-sm">
+              <div>
+                <p class="text-2xl text-white font-semibold">4</p>
+                <p class="text-ink-400 mt-0.5">étapes automatisées</p>
+              </div>
+              <div class="h-8 w-px bg-white/10"></div>
+              <div>
+                <p class="text-2xl text-white font-semibold">~60s</p>
+                <p class="text-ink-400 mt-0.5">par génération</p>
+              </div>
+              <div class="h-8 w-px bg-white/10"></div>
+              <div>
+                <p class="text-2xl text-white font-semibold">0€</p>
+                <p class="text-ink-400 mt-0.5">coût d'usage</p>
+              </div>
+            </div>
+
+            <div class="waveform mt-10 flex items-end gap-[3px] h-10 opacity-70" aria-hidden="true">
+              <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+              <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+              <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+              <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+            </div>
+          </div>
+
+          <!-- Right: generator card -->
+          <div class="rise rise-2 w-full p-px rounded-2xl card-edge shadow-2xl shadow-black/60">
+            <div class="bg-ink-900 rounded-[15px] p-6 sm:p-7">
+              <form id="generate-form" class="flex flex-col gap-5">
+                <div>
+                  <label for="sujet" class="text-sm font-medium text-ink-200">Sujet de la vidéo</label>
+                  <textarea
+                    id="sujet"
+                    name="sujet"
+                    rows="3"
+                    required
+                    placeholder="Ex : Les mystères des trous noirs, 3 astuces pour mieux dormir, l'histoire de Rome..."
+                    class="mt-2 w-full resize-none rounded-lg bg-ink-950 border border-white/10 px-4 py-3 text-[15px] text-ink-100 placeholder-ink-500 focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-amber-400/40 transition"
+                  ></textarea>
+                </div>
+
+                <div>
+                  <label for="voice-select" class="text-sm font-medium text-ink-200">Voix de la narration</label>
+                  <select
+                    id="voice-select"
+                    name="voice"
+                    class="mt-2 w-full rounded-lg bg-ink-950 border border-white/10 px-4 py-3 text-sm text-ink-100 focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-amber-400/40 transition"
+                  >
+                    <option value="">Chargement des voix...</option>
+                  </select>
+                </div>
+
+                <div>
+                  <span class="text-sm font-medium text-ink-200">Format</span>
+                  <div id="orientation-group" class="mt-2 grid grid-cols-2 gap-2">
+                    <!-- Boutons de format injectés en JS -->
+                  </div>
+                </div>
+
+                <div>
+                  <span class="text-sm font-medium text-ink-200">Durée de la vidéo</span>
+                  <div id="duration-group" class="mt-2 grid grid-cols-4 gap-2">
+                    <!-- Boutons de durée injectés en JS -->
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  id="multi-fond-toggle"
+                  aria-pressed="false"
+                  class="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/[0.02] px-4 py-3 text-left transition hover:bg-white/[0.05]"
+                >
+                  <span>
+                    <span class="block text-sm font-medium text-ink-100">Fonds multiples</span>
+                    <span class="block text-xs text-ink-400 mt-0.5">Alterne entre plusieurs fonds au lieu d'un seul en boucle</span>
+                  </span>
+                  <span id="toggle-track" class="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full bg-white/10 transition">
+                    <span id="toggle-dot" class="inline-block h-4 w-4 translate-x-1 rounded-full bg-ink-300 transition"></span>
+                  </span>
+                </button>
+
+                <button
+                  type="submit"
+                  id="submit-btn"
+                  class="mt-1 inline-flex items-center justify-center gap-2 rounded-lg bg-amber-400 hover:bg-amber-300 text-ink-950 font-semibold py-3.5 px-6 shadow-[0_1px_0_0_rgba(255,255,255,0.35)_inset] transition active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <svg id="btn-spinner" class="hidden spinner h-5 w-5" viewBox="0 0 24 24" fill="none">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                  </svg>
+                  <span id="btn-label">Générer ma vidéo</span>
+                </button>
+              </form>
+
+              <div id="status-box" class="hidden mt-6 pt-5 border-t border-white/[0.06]">
+                <div class="flex items-center justify-between">
+                  <div class="step-item flex items-center gap-2.5" data-step="0">
+                    <span class="step-dot h-6 w-6 rounded-full border border-white/15 flex items-center justify-center shrink-0 transition-colors">
+                      <span class="step-check hidden text-ink-950 text-xs">✓</span>
+                      <span class="step-spin hidden h-2.5 w-2.5 rounded-full border-2 border-ink-950 border-t-transparent spinner"></span>
+                      <span class="step-idle h-1.5 w-1.5 rounded-full bg-ink-500"></span>
+                    </span>
+                    <span class="step-label text-xs text-ink-400 hidden sm:inline">Script</span>
+                  </div>
+                  <div class="step-line flex-1 h-px bg-white/10 mx-1.5"></div>
+                  <div class="step-item flex items-center gap-2.5" data-step="1">
+                    <span class="step-dot h-6 w-6 rounded-full border border-white/15 flex items-center justify-center shrink-0 transition-colors">
+                      <span class="step-check hidden text-ink-950 text-xs">✓</span>
+                      <span class="step-spin hidden h-2.5 w-2.5 rounded-full border-2 border-ink-950 border-t-transparent spinner"></span>
+                      <span class="step-idle h-1.5 w-1.5 rounded-full bg-ink-500"></span>
+                    </span>
+                    <span class="step-label text-xs text-ink-400 hidden sm:inline">Voix</span>
+                  </div>
+                  <div class="step-line flex-1 h-px bg-white/10 mx-1.5"></div>
+                  <div class="step-item flex items-center gap-2.5" data-step="2">
+                    <span class="step-dot h-6 w-6 rounded-full border border-white/15 flex items-center justify-center shrink-0 transition-colors">
+                      <span class="step-check hidden text-ink-950 text-xs">✓</span>
+                      <span class="step-spin hidden h-2.5 w-2.5 rounded-full border-2 border-ink-950 border-t-transparent spinner"></span>
+                      <span class="step-idle h-1.5 w-1.5 rounded-full bg-ink-500"></span>
+                    </span>
+                    <span class="step-label text-xs text-ink-400 hidden sm:inline">Fond</span>
+                  </div>
+                  <div class="step-line flex-1 h-px bg-white/10 mx-1.5"></div>
+                  <div class="step-item flex items-center gap-2.5" data-step="3">
+                    <span class="step-dot h-6 w-6 rounded-full border border-white/15 flex items-center justify-center shrink-0 transition-colors">
+                      <span class="step-check hidden text-ink-950 text-xs">✓</span>
+                      <span class="step-spin hidden h-2.5 w-2.5 rounded-full border-2 border-ink-950 border-t-transparent spinner"></span>
+                      <span class="step-idle h-1.5 w-1.5 rounded-full bg-ink-500"></span>
+                    </span>
+                    <span class="step-label text-xs text-ink-400 hidden sm:inline">Montage</span>
+                  </div>
+                </div>
+                <p id="status-text" class="mt-4 text-sm text-ink-300 text-center">Initialisation...</p>
+              </div>
+
+              <div id="error-box" class="hidden mt-5 rounded-lg border border-red-500/25 bg-red-500/10 text-red-300 text-sm px-4 py-3 text-left"></div>
+            </div>
+          </div>
+
+          <!-- Result (spans both columns when shown) -->
+          <div id="result-box" class="hidden lg:col-span-2 w-full mt-4 flex flex-col items-center gap-4">
+            <h2 class="font-display text-xl font-semibold text-white">Ta vidéo est prête</h2>
+            <video
+              id="result-video"
+              controls
+              class="w-full max-w-[380px] aspect-[9/16] rounded-2xl border border-white/10 shadow-2xl shadow-black/60 bg-black transition-[aspect-ratio,max-width]"
+            ></video>
+            <a
+              id="download-link"
+              href="#"
+              download
+              class="inline-flex items-center gap-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-ink-100 font-medium py-2.5 px-5 transition"
+            >
+              Télécharger la vidéo
+            </a>
+          </div>
+        </main>
+      </div>
+
+      <footer class="max-w-6xl mx-auto px-6 py-10 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-white/[0.06] text-xs text-ink-400">
+        <span>© 2026 FacelessAI — Aucun coût, aucune carte bancaire requise.</span>
+        <span class="font-mono-num">Groq · edge-tts · Pexels · MoviePy</span>
+      </footer>
+    </div>
+  </div>
+
+  <!-- Modale "Bientôt disponible" -->
+  <div id="auth-modal" class="hidden fixed inset-0 z-40 flex items-center justify-center px-4">
+    <div id="auth-modal-backdrop" class="absolute inset-0 bg-black/75"></div>
+    <div class="relative w-full max-w-sm rounded-2xl border border-white/10 bg-ink-900 p-6 shadow-2xl shadow-black/60 text-center">
+      <div class="mx-auto h-12 w-12 rounded-full bg-amber-400/15 flex items-center justify-center mb-4">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <polyline points="12 6 12 12 16 14"></polyline>
+        </svg>
+      </div>
+      <h3 id="auth-modal-title" class="font-display text-lg font-semibold text-white">Bientôt disponible</h3>
+      <p id="auth-modal-text" class="mt-2 text-sm text-ink-300 leading-relaxed">
+        Les comptes utilisateurs arrivent prochainement. Pour l'instant, FacelessAI fonctionne sans inscription — génère librement tes vidéos.
+      </p>
+      <button id="auth-modal-close" type="button" class="mt-6 w-full rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-ink-100 font-medium py-2.5 transition">
+        Compris
+      </button>
+    </div>
+  </div>
+
+  <!-- Template pour une carte d'historique -->
+  <template id="history-item-template">
+    <div class="history-row group w-full flex gap-2.5 items-center rounded-lg p-2 transition hover:bg-white/5">
+      <button type="button" class="history-item flex gap-2.5 items-center min-w-0 flex-1 text-left">
+        <video class="history-thumb w-11 h-[70px] rounded-md bg-black object-cover shrink-0" preload="metadata" muted></video>
+        <span class="min-w-0 flex-1">
+          <span class="history-subject block text-xs text-ink-200 truncate"></span>
+          <span class="history-date block text-[11px] font-mono-num text-ink-400"></span>
+        </span>
+      </button>
+      <span class="hidden group-hover:flex items-center gap-0.5 shrink-0">
+        <button type="button" class="history-regenerate h-7 w-7 rounded-md flex items-center justify-center text-ink-400 hover:text-amber-400 hover:bg-white/10 transition" aria-label="Régénérer avec le même sujet" title="Régénérer">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="1 4 1 10 7 10"></polyline>
+            <path d="M3.51 15a9 9 0 102.13-9.36L1 10"></path>
+          </svg>
+        </button>
+        <button type="button" class="history-delete h-7 w-7 rounded-md flex items-center justify-center text-ink-400 hover:text-red-400 hover:bg-white/10 transition" aria-label="Supprimer cette vidéo" title="Supprimer">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"></path>
+          </svg>
+        </button>
+      </span>
+    </div>
+  </template>
+
+  <script>
+    const form = document.getElementById("generate-form");
+    const submitBtn = document.getElementById("submit-btn");
+    const btnSpinner = document.getElementById("btn-spinner");
+    const btnLabel = document.getElementById("btn-label");
+    const statusBox = document.getElementById("status-box");
+    const statusText = document.getElementById("status-text");
+    const errorBox = document.getElementById("error-box");
+    const resultBox = document.getElementById("result-box");
+    const resultVideo = document.getElementById("result-video");
+    const downloadLink = document.getElementById("download-link");
+    const multiFondToggle = document.getElementById("multi-fond-toggle");
+    const toggleTrack = document.getElementById("toggle-track");
+    const toggleDot = document.getElementById("toggle-dot");
+    const sujetInput = document.getElementById("sujet");
+    const voiceSelect = document.getElementById("voice-select");
+
+    async function loadVoices() {
+      try {
+        const res = await fetch("/voices");
+        const data = await res.json();
+        const entries = Object.entries(data.voices || {});
+
+        voiceSelect.innerHTML = "";
+        entries.forEach(([voiceId, meta]) => {
+          const option = document.createElement("option");
+          option.value = voiceId;
+          option.textContent = `${meta.label} — ${meta.gender}, ${meta.region}`;
+          if (voiceId === data.default) option.selected = true;
+          voiceSelect.appendChild(option);
+        });
+      } catch (err) {
+        voiceSelect.innerHTML = '<option value="">Voix par défaut</option>';
+      }
+    }
+
+    loadVoices();
+
+    const durationGroup = document.getElementById("duration-group");
+    let selectedDuration = "court";
+
+    function updateDurationStyles() {
+      durationGroup.querySelectorAll(".duration-chip").forEach((btn) => {
+        const isActive = btn.dataset.duration === selectedDuration;
+        btn.classList.toggle("bg-amber-400", isActive);
+        btn.classList.toggle("text-ink-950", isActive);
+        btn.classList.toggle("border-amber-400", isActive);
+        btn.classList.toggle("bg-white/[0.02]", !isActive);
+        btn.classList.toggle("text-ink-200", !isActive);
+        btn.classList.toggle("border-white/10", !isActive);
+      });
+    }
+
+    function renderDurationButtons(presets, defaultKey) {
+      durationGroup.innerHTML = "";
+      selectedDuration = defaultKey || "court";
+      Object.entries(presets).forEach(([key, meta]) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.dataset.duration = key;
+        btn.className = "duration-chip rounded-lg border px-2 py-2.5 text-xs font-medium text-center transition";
+        btn.textContent = meta.label;
+        btn.addEventListener("click", () => {
+          selectedDuration = key;
+          updateDurationStyles();
+        });
+        durationGroup.appendChild(btn);
+      });
+      updateDurationStyles();
+    }
+
+    async function loadDurations() {
+      try {
+        const res = await fetch("/durations");
+        const data = await res.json();
+        renderDurationButtons(data.durations, data.default);
+      } catch (err) {
+        renderDurationButtons({ court: { label: "Court (~30s)" } }, "court");
+      }
+    }
+
+    loadDurations();
+
+    const orientationGroup = document.getElementById("orientation-group");
+    let selectedOrientation = "portrait";
+
+    const ORIENTATION_ICONS = {
+      portrait: '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2"></rect></svg>',
+      paysage: '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="10" rx="2"></rect></svg>',
+    };
+    const ORIENTATION_SHORT_LABELS = { portrait: "Portrait", paysage: "Paysage" };
+
+    function updateResultVideoRatio() {
+      if (selectedOrientation === "paysage") {
+        resultVideo.classList.remove("aspect-[9/16]", "max-w-[380px]");
+        resultVideo.classList.add("aspect-[16/9]", "max-w-[640px]");
+      } else {
+        resultVideo.classList.remove("aspect-[16/9]", "max-w-[640px]");
+        resultVideo.classList.add("aspect-[9/16]", "max-w-[380px]");
+      }
+    }
+
+    function updateOrientationStyles() {
+      orientationGroup.querySelectorAll(".orientation-chip").forEach((btn) => {
+        const isActive = btn.dataset.orientation === selectedOrientation;
+        btn.classList.toggle("bg-amber-400", isActive);
+        btn.classList.toggle("text-ink-950", isActive);
+        btn.classList.toggle("border-amber-400", isActive);
+        btn.classList.toggle("bg-white/[0.02]", !isActive);
+        btn.classList.toggle("text-ink-200", !isActive);
+        btn.classList.toggle("border-white/10", !isActive);
+      });
+    }
+
+    function renderOrientationButtons(options, defaultKey) {
+      orientationGroup.innerHTML = "";
+      selectedOrientation = defaultKey || "portrait";
+      Object.keys(options).forEach((key) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.dataset.orientation = key;
+        btn.className = "orientation-chip flex items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-xs font-medium transition";
+        btn.innerHTML = `${ORIENTATION_ICONS[key] || ""}<span>${ORIENTATION_SHORT_LABELS[key] || key}</span>`;
+        btn.addEventListener("click", () => {
+          selectedOrientation = key;
+          updateOrientationStyles();
+          updateResultVideoRatio();
+        });
+        orientationGroup.appendChild(btn);
+      });
+      updateOrientationStyles();
+      updateResultVideoRatio();
+    }
+
+    async function loadOrientations() {
+      try {
+        const res = await fetch("/orientations");
+        const data = await res.json();
+        renderOrientationButtons(data.orientations, data.default);
+      } catch (err) {
+        renderOrientationButtons({ portrait: "Portrait", paysage: "Paysage" }, "portrait");
+      }
+    }
+
+    loadOrientations();
+
+    let multiFond = false;
+
+    function updateToggleStyles() {
+      multiFondToggle.setAttribute("aria-pressed", String(multiFond));
+      toggleTrack.classList.toggle("bg-amber-400", multiFond);
+      toggleTrack.classList.toggle("bg-white/10", !multiFond);
+      toggleDot.classList.toggle("translate-x-6", multiFond);
+      toggleDot.classList.toggle("translate-x-1", !multiFond);
+      toggleDot.classList.toggle("bg-ink-950", multiFond);
+      toggleDot.classList.toggle("bg-ink-300", !multiFond);
+    }
+
+    multiFondToggle.addEventListener("click", () => {
+      multiFond = !multiFond;
+      updateToggleStyles();
+    });
+
+    updateToggleStyles();
+
+    // --- Sidebar : collapse ---
+    const sidebar = document.getElementById("sidebar");
+    const sidebarToggle = document.getElementById("sidebar-toggle");
+    sidebarToggle.addEventListener("click", () => {
+      sidebar.classList.toggle("collapsed");
+    });
+
+    // --- Sidebar : nouvelle vidéo ---
+    document.getElementById("new-video-btn").addEventListener("click", () => {
+      form.reset();
+      multiFond = false;
+      updateToggleStyles();
+      resultBox.classList.add("hidden");
+      errorBox.classList.add("hidden");
+      sujetInput.focus();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+
+    // --- Sidebar : menu compte (placeholder, pas de vraie authentification) ---
+    const accountBtn = document.getElementById("account-btn");
+    const accountMenu = document.getElementById("account-menu");
+    accountBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      accountMenu.classList.toggle("hidden");
+    });
+    document.addEventListener("click", () => accountMenu.classList.add("hidden"));
+
+    // --- Modale "Bientôt disponible" ---
+    const authModal = document.getElementById("auth-modal");
+    const authModalBackdrop = document.getElementById("auth-modal-backdrop");
+    const authModalClose = document.getElementById("auth-modal-close");
+    const authModalTitle = document.getElementById("auth-modal-title");
+    const authModalText = document.getElementById("auth-modal-text");
+
+    const DEFAULT_AUTH_TEXT = "Les comptes utilisateurs arrivent prochainement. Pour l'instant, FacelessAI fonctionne sans inscription — génère librement tes vidéos.";
+
+    function openAuthModal(title, text) {
+      authModalTitle.textContent = title;
+      authModalText.textContent = text || DEFAULT_AUTH_TEXT;
+      authModal.classList.remove("hidden");
+    }
+    function closeAuthModal() {
+      authModal.classList.add("hidden");
+    }
+
+    document.getElementById("login-btn").addEventListener("click", () => openAuthModal("Connexion bientôt disponible"));
+    document.getElementById("signup-btn").addEventListener("click", () => openAuthModal("Inscription bientôt disponible"));
+    document.getElementById("account-settings-btn").addEventListener("click", () => openAuthModal("Paramètres bientôt disponibles"));
+    document.getElementById("account-logout-btn").addEventListener("click", () => openAuthModal(
+      "Aucune session active",
+      "Tu n'es pas connecté — il n'y a donc rien dont te déconnecter pour l'instant. Cette action sera utile une fois les comptes disponibles."
+    ));
+    document.getElementById("account-about-link").addEventListener("click", () => accountMenu.classList.add("hidden"));
+    authModalClose.addEventListener("click", closeAuthModal);
+    authModalBackdrop.addEventListener("click", closeAuthModal);
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeAuthModal();
+    });
+
+    // --- Historique (sidebar desktop + drawer mobile), groupé par période ---
+    const historyTemplate = document.getElementById("history-item-template");
+    const historyGroups = document.getElementById("history-groups");
+    const historyEmpty = document.getElementById("history-empty");
+    const historyGroupsMobile = document.getElementById("history-groups-mobile");
+    const historyEmptyMobile = document.getElementById("history-empty-mobile");
+
+    const mobileHistoryBtn = document.getElementById("mobile-history-btn");
+    const mobileHistoryDrawer = document.getElementById("mobile-history-drawer");
+    const mobileHistoryClose = document.getElementById("mobile-history-close");
+
+    mobileHistoryBtn.addEventListener("click", () => mobileHistoryDrawer.classList.remove("hidden"));
+    mobileHistoryClose.addEventListener("click", () => mobileHistoryDrawer.classList.add("hidden"));
+    mobileHistoryDrawer.addEventListener("click", (e) => {
+      if (e.target === mobileHistoryDrawer) mobileHistoryDrawer.classList.add("hidden");
+    });
+
+    function formatTime(isoString) {
+      return new Date(isoString).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+    }
+
+    function groupLabel(isoString) {
+      const date = new Date(isoString);
+      const now = new Date();
+      const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      const diffDays = Math.round((startOfDay(now) - startOfDay(date)) / 86400000);
+
+      if (diffDays <= 0) return "Aujourd'hui";
+      if (diffDays === 1) return "Hier";
+      if (diffDays <= 7) return "7 derniers jours";
+      if (diffDays <= 30) return "30 derniers jours";
+      return "Plus ancien";
+    }
+
+    async function deleteHistoryEntry(jobId) {
+      try {
+        await fetch(`/history/${jobId}`, { method: "DELETE" });
+      } catch (err) {
+        // Silencieux : au pire l'entrée réapparaîtra au prochain rechargement.
+      }
+      loadHistory();
+    }
+
+    function buildHistoryItem(entry) {
+      const node = historyTemplate.content.cloneNode(true);
+      const button = node.querySelector(".history-item");
+      const thumb = node.querySelector(".history-thumb");
+      const subject = node.querySelector(".history-subject");
+      const date = node.querySelector(".history-date");
+      const regenerateBtn = node.querySelector(".history-regenerate");
+      const deleteBtn = node.querySelector(".history-delete");
+
+      thumb.src = entry.video_url + "#t=0.5";
+      subject.textContent = entry.sujet;
+      subject.title = entry.sujet;
+      date.textContent = formatTime(entry.created_at);
+
+      button.addEventListener("click", () => {
+        resultVideo.src = entry.video_url;
+        downloadLink.href = entry.video_url;
+        resultBox.classList.remove("hidden");
+        resultBox.scrollIntoView({ behavior: "smooth", block: "center" });
+        mobileHistoryDrawer.classList.add("hidden");
+      });
+
+      regenerateBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        sujetInput.value = entry.sujet;
+        if (entry.voice) voiceSelect.value = entry.voice;
+        if (entry.duration) {
+          selectedDuration = entry.duration;
+          updateDurationStyles();
+        }
+        if (entry.orientation) {
+          selectedOrientation = entry.orientation;
+          updateOrientationStyles();
+          updateResultVideoRatio();
+        }
+        multiFond = !!entry.multi_fond;
+        updateToggleStyles();
+        mobileHistoryDrawer.classList.add("hidden");
+        runGeneration(
+          entry.sujet,
+          entry.voice || voiceSelect.value,
+          multiFond,
+          entry.duration || selectedDuration,
+          entry.orientation || selectedOrientation
+        );
+      });
+
+      deleteBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (confirm(`Supprimer la vidéo « ${entry.sujet} » de l'historique ?`)) {
+          deleteHistoryEntry(entry.job_id);
+        }
+      });
+
+      return node;
+    }
+
+    function renderHistoryInto(container, emptyEl, entries) {
+      container.innerHTML = "";
+      if (!entries || entries.length === 0) {
+        emptyEl.classList.remove("hidden");
+        return;
+      }
+      emptyEl.classList.add("hidden");
+
+      const groups = new Map();
+      entries.forEach((entry) => {
+        const label = groupLabel(entry.created_at);
+        if (!groups.has(label)) groups.set(label, []);
+        groups.get(label).push(entry);
+      });
+
+      groups.forEach((groupEntries, label) => {
+        const section = document.createElement("div");
+
+        const heading = document.createElement("p");
+        heading.className = "sidebar-section-label px-2 pb-1 text-[11px] font-semibold tracking-wide uppercase text-ink-400";
+        heading.textContent = label;
+        section.appendChild(heading);
+
+        groupEntries.forEach((entry) => section.appendChild(buildHistoryItem(entry)));
+        container.appendChild(section);
+      });
+    }
+
+    function renderHistory(entries) {
+      renderHistoryInto(historyGroups, historyEmpty, entries);
+      renderHistoryInto(historyGroupsMobile, historyEmptyMobile, entries);
+    }
+
+    async function loadHistory() {
+      try {
+        const res = await fetch("/history");
+        const data = await res.json();
+        renderHistory(data.history);
+      } catch (err) {
+        // Silencieux : l'historique n'est pas critique pour l'usage principal.
+      }
+    }
+
+    loadHistory();
+
+    // Multiplicateur appliqué aux délais du stepper selon la durée choisie :
+    // un script plus long prend plus de temps à écrire, à synthétiser en voix
+    // et surtout à monter (plus de segments vidéo et de sous-titres).
+    const DURATION_TIME_SCALE = { court: 1, "1min": 1.6, "2min": 2.6, "3min": 3.8 };
+
+    function buildSteps(scale) {
+      return [
+        { label: "Rédaction du script avec l'IA...", after: 0 },
+        { label: "Génération de la voix off...", after: Math.round(2200 * scale) },
+        { label: "Recherche d'une vidéo de fond...", after: Math.round(5000 * scale) },
+        { label: "Montage final en cours (cela peut prendre un moment sur les vidéos longues)...", after: Math.round(8500 * scale) },
+      ];
+    }
+
+    let STEPS = buildSteps(1);
+
+    const stepItems = Array.from(document.querySelectorAll(".step-item"));
+    const stepLines = Array.from(document.querySelectorAll(".step-line"));
+
+    function setStep(index) {
+      stepItems.forEach((item, i) => {
+        item.classList.toggle("is-done", i < index);
+        item.classList.toggle("is-active", i === index);
+      });
+      stepLines.forEach((line, i) => {
+        line.classList.toggle("is-done", i < index);
+      });
+      statusText.textContent = index < STEPS.length ? STEPS[index].label : "Vidéo prête !";
+    }
+
+    function resetSteps() {
+      stepItems.forEach((item) => item.classList.remove("is-done", "is-active"));
+      stepLines.forEach((line) => line.classList.remove("is-done"));
+    }
+
+    function setLoading(isLoading) {
+      submitBtn.disabled = isLoading;
+      btnSpinner.classList.toggle("hidden", !isLoading);
+      btnLabel.textContent = isLoading ? "Génération en cours..." : "Générer ma vidéo";
+    }
+
+    function cycleStatus() {
+      resetSteps();
+      setStep(0);
+      const timeouts = STEPS.slice(1).map((step, i) =>
+        setTimeout(() => setStep(i + 1), step.after)
+      );
+      return () => timeouts.forEach(clearTimeout);
+    }
+
+    async function runGeneration(sujet, voice, multi, duration, orientation) {
+      duration = duration || selectedDuration;
+      orientation = orientation || selectedOrientation;
+      STEPS = buildSteps(DURATION_TIME_SCALE[duration] || 1);
+
+      errorBox.classList.add("hidden");
+      resultBox.classList.add("hidden");
+      statusBox.classList.remove("hidden");
+      setLoading(true);
+      const cancelSteps = cycleStatus();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+
+      try {
+        const response = await fetch("/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sujet, multi_fond: multi, voice, duration, orientation }),
+        });
+
+        const data = await response.json();
+
+        cancelSteps();
+        setLoading(false);
+
+        if (!response.ok || !data.success) {
+          statusBox.classList.add("hidden");
+          errorBox.textContent = data.error || "Une erreur inattendue est survenue. Veuillez réessayer.";
+          errorBox.classList.remove("hidden");
+          return;
+        }
+
+        setStep(STEPS.length);
+        setTimeout(() => statusBox.classList.add("hidden"), 500);
+
+        resultVideo.src = data.video_url;
+        downloadLink.href = data.video_url;
+        resultBox.classList.remove("hidden");
+        resultBox.scrollIntoView({ behavior: "smooth", block: "center" });
+        loadHistory();
+      } catch (err) {
+        cancelSteps();
+        statusBox.classList.add("hidden");
+        setLoading(false);
+        errorBox.textContent = "Impossible de contacter le serveur. Vérifiez que l'API est bien lancée.";
+        errorBox.classList.remove("hidden");
+      }
+    }
+
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const sujet = sujetInput.value.trim();
+      if (!sujet) return;
+      runGeneration(sujet, voiceSelect.value, multiFond, selectedDuration, selectedOrientation);
+    });
+
+    // --- Scroll reveal des sections plus bas sur la page ---
+    const revealObserver = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("is-visible");
+            revealObserver.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.15, rootMargin: "0px 0px -60px 0px" }
+    );
+    document.querySelectorAll(".reveal").forEach((el) => revealObserver.observe(el));
+  </script>
+</body>
+</html>
