@@ -34,8 +34,10 @@ from starlette.requests import Request
 
 from core import database
 from core.auth import (
+    fetch_discord_userinfo,
     fetch_github_userinfo,
     get_current_user,
+    is_discord_configured,
     is_github_configured,
     is_google_configured,
     login_user,
@@ -166,6 +168,33 @@ async def auth_github_callback(request: Request):
     return RedirectResponse(url="/app")
 
 
+@app.get("/auth/discord/login")
+async def auth_discord_login(request: Request):
+    if not is_discord_configured():
+        raise HTTPException(
+            status_code=503,
+            detail="La connexion Discord n'est pas configurée sur ce serveur (DISCORD_CLIENT_ID/SECRET manquants).",
+        )
+    redirect_uri = request.url_for("auth_discord_callback")
+    return await oauth.discord.authorize_redirect(request, redirect_uri)
+
+
+@app.get("/auth/discord/callback")
+async def auth_discord_callback(request: Request):
+    token = await oauth.discord.authorize_access_token(request)
+    userinfo = await fetch_discord_userinfo(token)
+
+    user = database.upsert_user(
+        user_id=userinfo["sub"],
+        email=userinfo["email"],
+        name=userinfo["name"],
+        picture=userinfo.get("picture"),
+    )
+    login_user(request, user)
+    request.session.pop("anonymous_generations", None)
+    return RedirectResponse(url="/app")
+
+
 @app.post("/auth/logout")
 async def auth_logout(request: Request):
     logout_user(request)
@@ -179,6 +208,7 @@ async def auth_me(request: Request):
         "user": user,
         "google_configured": is_google_configured(),
         "github_configured": is_github_configured(),
+        "discord_configured": is_discord_configured(),
     }
 
 
