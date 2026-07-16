@@ -15,9 +15,11 @@ DEFAULT_ORIENTATION = "portrait"
 
 # Limite volontairement la résolution des vidéos de fond téléchargées : le
 # serveur tourne avec 512 Mo de RAM sur le plan gratuit Render, et décoder des
-# sources 2K/4K image par image avec moviepy y provoque un OOM silencieux
-# (le process est tué par l'hôte, sans exception Python à intercepter).
-MAX_SOURCE_DIMENSION = 1280
+# sources HD/2K/4K image par image avec moviepy y provoque un OOM silencieux
+# (le process est tué par l'hôte, sans exception Python à intercepter). 720p
+# s'est encore avéré trop lourd en pratique : on vise du 480p pour la source,
+# largement suffisant en qualité perçue une fois recadré/affiché en mobile.
+MAX_SOURCE_DIMENSION = 854
 
 
 def _pick_best_video_file(video: dict, orientation: str) -> str | None:
