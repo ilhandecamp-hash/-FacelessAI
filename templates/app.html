@@ -261,7 +261,7 @@
           <div class="flex items-center gap-2 shrink-0">
             <span class="hidden lg:inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded-full border border-white/10 bg-white/[0.03] text-ink-300 mr-1">
               <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
-              100% gratuit
+              Gratuit pour commencer
             </span>
             <a href="/" class="text-sm font-medium text-ink-300 hover:text-white px-3 py-2 rounded-md hover:bg-white/5 transition">
               ← Accueil
@@ -328,6 +328,13 @@
           <!-- Right: generator card -->
           <div class="rise rise-2 w-full p-px rounded-2xl card-edge shadow-2xl shadow-black/60">
             <div class="bg-ink-900 rounded-[15px] p-6 sm:p-7">
+              <div id="usage-banner" class="hidden mb-5 flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/[0.02] px-4 py-2.5 text-xs">
+                <span id="usage-banner-text" class="text-ink-300"></span>
+                <a href="#section-tarifs" id="usage-banner-cta" class="hidden shrink-0 inline-flex items-center gap-1 font-semibold text-amber-400 hover:text-amber-300 transition">
+                  👑 Passer Premium
+                </a>
+              </div>
+
               <form id="generate-form" class="flex flex-col gap-5">
                 <div>
                   <label for="sujet" class="text-sm font-medium text-ink-200">Sujet de la vidéo</label>
@@ -373,7 +380,10 @@
                   class="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/[0.02] px-4 py-3 text-left transition hover:bg-white/[0.05]"
                 >
                   <span>
-                    <span class="block text-sm font-medium text-ink-100">Fonds multiples</span>
+                    <span class="flex items-center gap-1.5 text-sm font-medium text-ink-100">
+                      Fonds multiples
+                      <span class="premium-crown hidden text-xs">👑</span>
+                    </span>
                     <span class="block text-xs text-ink-400 mt-0.5">Alterne entre plusieurs fonds au lieu d'un seul en boucle</span>
                   </span>
                   <span id="toggle-track" class="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full bg-white/10 transition">
@@ -535,6 +545,12 @@
   </template>
 
   <script>
+    let currentUser = null;
+    let isPremium = false;
+    let premiumPrice = 9.99;
+    let freeDailyLimit = 5;
+    let dailyUsage = null;
+
     const form = document.getElementById("generate-form");
     const submitBtn = document.getElementById("submit-btn");
     const btnSpinner = document.getElementById("btn-spinner");
@@ -594,8 +610,8 @@
         const btn = document.createElement("button");
         btn.type = "button";
         btn.dataset.duration = key;
-        btn.className = "duration-chip rounded-lg border px-2 py-2.5 text-xs font-medium text-center transition";
-        btn.textContent = meta.label;
+        btn.className = "duration-chip rounded-lg border px-2 py-2.5 text-xs font-medium text-center transition relative";
+        btn.innerHTML = `${meta.label}${key !== "court" ? '<span class="premium-crown hidden absolute -top-1.5 -right-1.5 text-[10px]">👑</span>' : ""}`;
         btn.addEventListener("click", () => {
           selectedDuration = key;
           updateDurationStyles();
@@ -603,6 +619,7 @@
         durationGroup.appendChild(btn);
       });
       updateDurationStyles();
+      applyPremiumUI();
     }
 
     async function loadDurations() {
@@ -655,8 +672,9 @@
         const btn = document.createElement("button");
         btn.type = "button";
         btn.dataset.orientation = key;
-        btn.className = "orientation-chip flex items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-xs font-medium transition";
-        btn.innerHTML = `${ORIENTATION_ICONS[key] || ""}<span>${ORIENTATION_SHORT_LABELS[key] || key}</span>`;
+        btn.className = "orientation-chip flex items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-xs font-medium transition relative";
+        const crown = key !== "portrait" ? '<span class="premium-crown hidden absolute -top-1.5 -right-1.5 text-[10px]">👑</span>' : "";
+        btn.innerHTML = `${ORIENTATION_ICONS[key] || ""}<span>${ORIENTATION_SHORT_LABELS[key] || key}</span>${crown}`;
         btn.addEventListener("click", () => {
           selectedOrientation = key;
           updateOrientationStyles();
@@ -666,6 +684,7 @@
       });
       updateOrientationStyles();
       updateResultVideoRatio();
+      applyPremiumUI();
     }
 
     async function loadOrientations() {
@@ -766,8 +785,6 @@
     const accountNameEl = document.getElementById("account-name");
     const accountEmailEl = document.getElementById("account-email");
 
-    let currentUser = null;
-
     function applyAuthUI() {
       const connected = !!currentUser;
 
@@ -800,15 +817,51 @@
       }
     }
 
+    const usageBanner = document.getElementById("usage-banner");
+    const usageBannerText = document.getElementById("usage-banner-text");
+    const usageBannerCta = document.getElementById("usage-banner-cta");
+
+    function applyPremiumUI() {
+      // Les couronnes marquent les options réservées à Premium (visibles pour
+      // tous, mais l'appel serveur les refusera si un compte gratuit tente
+      // de les utiliser quand même).
+      document.querySelectorAll(".premium-crown").forEach((el) => {
+        el.classList.toggle("hidden", isPremium);
+      });
+
+      if (!currentUser) {
+        usageBanner.classList.add("hidden");
+        return;
+      }
+
+      if (isPremium) {
+        usageBannerText.textContent = "👑 Compte Premium — accès illimité à toutes les options.";
+        usageBannerCta.classList.add("hidden");
+        usageBanner.classList.remove("hidden");
+      } else if (dailyUsage !== null) {
+        const remaining = Math.max(0, freeDailyLimit - dailyUsage);
+        usageBannerText.textContent = `${remaining}/${freeDailyLimit} vidéos gratuites restantes aujourd'hui`;
+        usageBannerCta.classList.remove("hidden");
+        usageBanner.classList.remove("hidden");
+      }
+    }
+
     async function loadCurrentUser() {
       try {
         const res = await fetch("/auth/me");
         const data = await res.json();
         currentUser = data.user || null;
+        isPremium = !!(currentUser && currentUser.is_premium);
+        premiumPrice = data.premium_price_eur ?? premiumPrice;
+        freeDailyLimit = data.free_daily_generations ?? freeDailyLimit;
+        dailyUsage = typeof data.daily_usage === "number" ? data.daily_usage : null;
       } catch (err) {
         currentUser = null;
+        isPremium = false;
+        dailyUsage = null;
       }
       applyAuthUI();
+      applyPremiumUI();
     }
 
     loadCurrentUser();

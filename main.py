@@ -65,6 +65,13 @@ MULTI_BACKGROUND_COUNTS = {
 }
 
 FREE_GENERATIONS_WITHOUT_ACCOUNT = 2
+FREE_DAILY_GENERATIONS = 5
+PREMIUM_MONTHLY_PRICE_EUR = 9.99
+
+# Compte développeur : toujours traité comme premium, sans dépendre d'un
+# paiement réel. Utile pour tester le comportement premium avant que Stripe
+# (ou équivalent) soit branché.
+DEVELOPER_EMAILS = {"ilhandecamp@gmail.com"}
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("videoia")
@@ -97,6 +104,17 @@ class GenerateResponse(BaseModel):
     script: str | None = None
     error: str | None = None
     requires_login: bool = False
+    requires_premium: bool = False
+
+
+def _finish_login(request: Request, user: dict) -> dict:
+    """Active le premium développeur si nécessaire, puis ouvre la session."""
+    if user["email"] in DEVELOPER_EMAILS and not user.get("is_premium"):
+        database.set_premium(user["id"], True)
+        user = database.get_user(user["id"])
+    login_user(request, user)
+    request.session.pop("anonymous_generations", None)
+    return user
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -136,8 +154,7 @@ async def auth_callback(request: Request):
         name=userinfo.get("name", userinfo["email"]),
         picture=userinfo.get("picture"),
     )
-    login_user(request, user)
-    request.session.pop("anonymous_generations", None)
+    _finish_login(request, user)
     return RedirectResponse(url="/app")
 
 
@@ -163,8 +180,7 @@ async def auth_github_callback(request: Request):
         name=userinfo["name"],
         picture=userinfo.get("picture"),
     )
-    login_user(request, user)
-    request.session.pop("anonymous_generations", None)
+    _finish_login(request, user)
     return RedirectResponse(url="/app")
 
 
@@ -190,8 +206,7 @@ async def auth_discord_callback(request: Request):
         name=userinfo["name"],
         picture=userinfo.get("picture"),
     )
-    login_user(request, user)
-    request.session.pop("anonymous_generations", None)
+    _finish_login(request, user)
     return RedirectResponse(url="/app")
 
 
@@ -204,12 +219,19 @@ async def auth_logout(request: Request):
 @app.get("/auth/me")
 async def auth_me(request: Request):
     user = get_current_user(request)
-    return {
+    payload = {
         "user": user,
         "google_configured": is_google_configured(),
         "github_configured": is_github_configured(),
         "discord_configured": is_discord_configured(),
+        "premium_price_eur": PREMIUM_MONTHLY_PRICE_EUR,
+        "free_daily_generations": FREE_DAILY_GENERATIONS,
     }
+
+    if user and not user.get("is_premium"):
+        payload["daily_usage"] = database.get_daily_usage(user["id"])
+
+    return payload
 
 
 # --- Génération de vidéo ---
@@ -227,9 +249,37 @@ async def generate(request: Request, payload: GenerateRequest):
                 requires_login=True,
                 error=(
                     f"Tu as utilisé tes {FREE_GENERATIONS_WITHOUT_ACCOUNT} générations gratuites. "
-                    "Connecte-toi avec Google pour continuer à générer des vidéos."
+                    "Connecte-toi pour continuer à générer des vidéos."
                 ),
             )
+    else:
+        is_premium = bool(user.get("is_premium"))
+
+        if not is_premium:
+            used_today = database.get_daily_usage(user["id"])
+            if used_today >= FREE_DAILY_GENERATIONS:
+                return GenerateResponse(
+                    success=False,
+                    requires_premium=True,
+                    error=(
+                        f"Tu as atteint la limite gratuite de {FREE_DAILY_GENERATIONS} vidéos par jour. "
+                        f"Passe Premium ({PREMIUM_MONTHLY_PRICE_EUR}€/mois) pour un usage illimité."
+                    ),
+                )
+
+            # Le plan gratuit connecté reste limité aux vidéos courtes en
+            # portrait, sans fonds multiples : les options avancées sont
+            # réservées à Premium (visibles dans l'UI avec un badge couronne,
+            # mais refusées ici si jamais contournées côté client).
+            if payload.duration != "court" or payload.orientation != "portrait" or payload.multi_fond:
+                return GenerateResponse(
+                    success=False,
+                    requires_premium=True,
+                    error=(
+                        "Les vidéos longues, le format paysage et les fonds multiples sont "
+                        f"réservés aux membres Premium ({PREMIUM_MONTHLY_PRICE_EUR}€/mois)."
+                    ),
+                )
 
     sujet = payload.sujet.strip()
     if not sujet:
@@ -296,6 +346,8 @@ async def generate(request: Request, payload: GenerateRequest):
             job_id, user["id"], sujet, script_text, video_url,
             payload.multi_fond, payload.voice, duration, orientation,
         )
+        if not user.get("is_premium"):
+            database.increment_daily_usage(user["id"])
     else:
         request.session["anonymous_generations"] = request.session.get("anonymous_generations", 0) + 1
 

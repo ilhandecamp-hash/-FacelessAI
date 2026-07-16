@@ -121,6 +121,7 @@ def login_user(request: Request, user: dict) -> None:
         "email": user["email"],
         "name": user["name"],
         "picture": user.get("picture"),
+        "is_premium": bool(user.get("is_premium")),
     }
 
 

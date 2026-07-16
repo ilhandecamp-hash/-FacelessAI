@@ -42,9 +42,15 @@ def init_db() -> None:
                 email TEXT UNIQUE NOT NULL,
                 name TEXT NOT NULL,
                 picture TEXT,
+                is_premium INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL
             )
         """)
+        # Migration douce : ajoute la colonne si la base existait déjà sans elle.
+        existing_cols = {row["name"] for row in conn.execute("PRAGMA table_info(users)")}
+        if "is_premium" not in existing_cols:
+            conn.execute("ALTER TABLE users ADD COLUMN is_premium INTEGER NOT NULL DEFAULT 0")
+
         conn.execute("""
             CREATE TABLE IF NOT EXISTS history (
                 job_id TEXT PRIMARY KEY,
@@ -57,6 +63,17 @@ def init_db() -> None:
                 duration TEXT NOT NULL,
                 orientation TEXT NOT NULL,
                 created_at TEXT NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+        """)
+        # Compte les générations par utilisateur et par jour calendaire (UTC),
+        # pour appliquer le quota gratuit de 5 vidéos/jour.
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS daily_usage (
+                user_id TEXT NOT NULL,
+                usage_date TEXT NOT NULL,
+                count INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (user_id, usage_date),
                 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
             )
         """)
@@ -93,6 +110,9 @@ def upsert_user(user_id: str, email: str, name: str, picture: str | None) -> dic
                 conn.execute(
                     "UPDATE history SET user_id = ? WHERE user_id = ?", (user_id, old_id)
                 )
+                conn.execute(
+                    "UPDATE daily_usage SET user_id = ? WHERE user_id = ?", (user_id, old_id)
+                )
                 conn.execute("PRAGMA foreign_keys = ON")
             else:
                 conn.execute(
@@ -106,13 +126,56 @@ def upsert_user(user_id: str, email: str, name: str, picture: str | None) -> dic
             )
 
         row = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
-        return dict(row)
+        user = dict(row)
+        user["is_premium"] = bool(user["is_premium"])
+        return user
+
+
+def set_premium(user_id: str, is_premium: bool) -> None:
+    """Active/désactive le statut premium d'un utilisateur (ex: après paiement Stripe)."""
+    with _get_conn() as conn:
+        conn.execute("UPDATE users SET is_premium = ? WHERE id = ?", (int(is_premium), user_id))
+
+
+def _today() -> str:
+    return datetime.now(timezone.utc).date().isoformat()
+
+
+def get_daily_usage(user_id: str) -> int:
+    """Retourne le nombre de générations déjà effectuées aujourd'hui (UTC) par cet utilisateur."""
+    with _get_conn() as conn:
+        row = conn.execute(
+            "SELECT count FROM daily_usage WHERE user_id = ? AND usage_date = ?",
+            (user_id, _today()),
+        ).fetchone()
+        return row["count"] if row else 0
+
+
+def increment_daily_usage(user_id: str) -> int:
+    """Incrémente le compteur du jour et retourne la nouvelle valeur."""
+    with _get_conn() as conn:
+        conn.execute(
+            """
+            INSERT INTO daily_usage (user_id, usage_date, count) VALUES (?, ?, 1)
+            ON CONFLICT(user_id, usage_date) DO UPDATE SET count = count + 1
+            """,
+            (user_id, _today()),
+        )
+        row = conn.execute(
+            "SELECT count FROM daily_usage WHERE user_id = ? AND usage_date = ?",
+            (user_id, _today()),
+        ).fetchone()
+        return row["count"]
 
 
 def get_user(user_id: str) -> dict | None:
     with _get_conn() as conn:
         row = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
-        return dict(row) if row else None
+        if not row:
+            return None
+        user = dict(row)
+        user["is_premium"] = bool(user["is_premium"])
+        return user
 
 
 def add_history_entry(
