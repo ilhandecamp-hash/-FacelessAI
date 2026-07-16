@@ -105,6 +105,12 @@ class GenerateResponse(BaseModel):
     error: str | None = None
     requires_login: bool = False
     requires_premium: bool = False
+    job_id: str | None = None
+
+
+class VisibilityRequest(BaseModel):
+    is_public: bool
+    category: str = "autre"
 
 
 def _finish_login(request: Request, user: dict) -> dict:
@@ -125,6 +131,27 @@ async def landing(request: Request):
 @app.get("/app", response_class=HTMLResponse)
 async def app_page(request: Request):
     return templates.TemplateResponse("app.html", {"request": request})
+
+
+@app.get("/result/{job_id}", response_class=HTMLResponse)
+async def result_page(request: Request, job_id: str):
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/app")
+
+    entry = database.get_history_entry(job_id, user["id"])
+    if not entry:
+        raise HTTPException(status_code=404, detail="Vidéo introuvable.")
+
+    return templates.TemplateResponse(
+        "result.html",
+        {"request": request, "entry": entry, "categories": database.VIDEO_CATEGORIES},
+    )
+
+
+@app.get("/gallery", response_class=HTMLResponse)
+async def gallery_page(request: Request):
+    return templates.TemplateResponse("gallery.html", {"request": request, "categories": database.VIDEO_CATEGORIES})
 
 
 # --- Authentification Google + GitHub OAuth ---
@@ -351,7 +378,12 @@ async def generate(request: Request, payload: GenerateRequest):
     else:
         request.session["anonymous_generations"] = request.session.get("anonymous_generations", 0) + 1
 
-    return GenerateResponse(success=True, video_url=video_url, script=script_text)
+    return GenerateResponse(
+        success=True,
+        video_url=video_url,
+        script=script_text,
+        job_id=job_id if user else None,
+    )
 
 
 # --- Historique (réservé aux utilisateurs connectés) ---
@@ -385,6 +417,44 @@ async def delete_history_entry(request: Request, job_id: str):
                 pass
 
     return {"success": True}
+
+
+@app.post("/history/{job_id}/visibility")
+async def set_history_visibility(request: Request, job_id: str, payload: VisibilityRequest):
+    user = get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Connexion requise.")
+
+    updated = database.set_video_visibility(job_id, user["id"], payload.is_public, payload.category)
+    if not updated:
+        raise HTTPException(status_code=404, detail="Entrée d'historique introuvable.")
+
+    return {"success": True}
+
+
+@app.post("/history/{job_id}/like")
+async def like_history_entry(request: Request, job_id: str):
+    user = get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Connexion requise pour aimer une vidéo.")
+
+    liked, likes_count = database.toggle_video_like(job_id, user["id"])
+    return {"liked": liked, "likes_count": likes_count}
+
+
+@app.get("/api/gallery")
+async def api_gallery(request: Request, category: str | None = None):
+    videos = database.get_public_gallery(category=category)
+
+    user = get_current_user(request)
+    liked_ids: set[str] = set()
+    if user:
+        liked_ids = database.user_liked_videos(user["id"], [v["job_id"] for v in videos])
+
+    for video in videos:
+        video["liked_by_me"] = video["job_id"] in liked_ids
+
+    return {"videos": videos, "categories": database.VIDEO_CATEGORIES}
 
 
 @app.get("/voices")

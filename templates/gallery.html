@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="fr" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Galerie publique — FacelessAI</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            amber: { 300: "#f0c479", 400: "#e8a33d", 500: "#d68a1f", 600: "#b8710f" },
+            ink: { 950: "#0a0c10", 900: "#0e1116", 800: "#141821", 700: "#1b202c", 600: "#252b3a", 500: "#3a4257", 400: "#5b6478", 300: "#8891a3", 200: "#b7bec9" },
+          },
+          fontFamily: {
+            display: ["Fraunces", "ui-serif", "Georgia", "serif"],
+            sans: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],
+            mono: ["'JetBrains Mono'", "ui-monospace", "SFMono-Regular", "monospace"],
+          },
+        },
+      },
+    };
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    body { font-family: "Inter", sans-serif; background: #0a0c10; }
+    h1, h2, h3, .font-display { font-family: "Fraunces", ui-serif, serif; text-wrap: balance; }
+    .category-tab.is-active { background: #e8a33d; color: #0a0c10; border-color: #e8a33d; }
+    .video-card { transition: transform 0.2s ease, border-color 0.2s ease; }
+    .video-card:hover { transform: translateY(-3px); border-color: rgba(232,163,61,0.3); }
+    .like-btn.is-liked svg { fill: #e8a33d; stroke: #e8a33d; }
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-thumb { background: #2a3140; border-radius: 8px; }
+    ::selection { background: rgba(232, 163, 61, 0.35); color: #fff; }
+  </style>
+</head>
+<body class="min-h-screen bg-ink-950 text-ink-200">
+
+  <header class="border-b border-white/[0.06]">
+    <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
+      <a href="/" class="flex items-center gap-2.5 shrink-0 group">
+        <img src="/static/brand/logo.svg" alt="FacelessAI" class="h-7 w-7 rounded-md" />
+        <span class="font-display font-semibold tracking-tight text-white text-[15px] group-hover:text-amber-300 transition">FacelessAI</span>
+      </a>
+      <div class="flex items-center gap-2">
+        <a href="/app" class="text-sm font-semibold text-ink-950 bg-amber-400 hover:bg-amber-300 px-4 py-2 rounded-md shadow-[0_1px_0_0_rgba(255,255,255,0.3)_inset] transition">
+          Créer une vidéo
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-6 py-14">
+    <span class="inline-flex items-center gap-2 text-xs font-medium tracking-widest text-amber-400 uppercase">
+      <span class="h-px w-6 bg-amber-400/60"></span>
+      Galerie communautaire
+    </span>
+    <h1 class="mt-4 font-display text-4xl sm:text-5xl font-semibold tracking-tight text-white leading-[1.05]">
+      Vidéos publiées par la communauté
+    </h1>
+    <p class="mt-3 text-lg text-ink-300 max-w-2xl">
+      Des vidéos générées avec FacelessAI, partagées par leurs auteurs. Explore par style, ou télécharge le tien pour t'en inspirer.
+    </p>
+
+    <div id="category-tabs" class="mt-9 flex flex-wrap gap-2">
+      <button type="button" class="category-tab is-active rounded-full border border-white/10 bg-white/[0.02] hover:bg-white/[0.06] px-4 py-2 text-sm font-medium text-ink-200 transition" data-category="">
+        Toutes
+      </button>
+      {% for key, label in categories.items() %}
+      <button type="button" class="category-tab rounded-full border border-white/10 bg-white/[0.02] hover:bg-white/[0.06] px-4 py-2 text-sm font-medium text-ink-200 transition" data-category="{{ key }}">
+        {{ label }}
+      </button>
+      {% endfor %}
+    </div>
+
+    <div id="gallery-empty" class="hidden mt-16 text-center text-ink-400">
+      <p class="text-lg">Aucune vidéo publique pour le moment dans cette catégorie.</p>
+      <a href="/app" class="mt-4 inline-flex items-center gap-2 text-amber-400 hover:text-amber-300 font-semibold">
+        Sois le premier à en publier une →
+      </a>
+    </div>
+
+    <div id="gallery-grid" class="mt-10 grid sm:grid-cols-2 lg:grid-cols-4 gap-6"></div>
+  </main>
+
+  <script id="gallery-card-template" type="text/template">
+    <div class="video-card rounded-2xl border border-white/10 bg-ink-900 overflow-hidden">
+      <div class="relative aspect-[9/16] bg-black">
+        <video class="absolute inset-0 h-full w-full object-cover" src="__VIDEO_URL__" muted loop playsinline preload="metadata" onmouseover="this.play()" onmouseout="this.pause(); this.currentTime = 0;"></video>
+        <span class="absolute top-2.5 left-2.5 rounded-full bg-black/60 backdrop-blur px-2.5 py-1 text-[11px] font-medium text-white">__CATEGORY_LABEL__</span>
+      </div>
+      <div class="p-4">
+        <p class="text-sm text-ink-100 leading-snug line-clamp-2">__SUJET__</p>
+        <div class="mt-3 flex items-center justify-between">
+          <span class="text-xs text-ink-400">par __AUTHOR__</span>
+          <button type="button" class="like-btn __LIKED_CLASS__ flex items-center gap-1.5 text-xs text-ink-300 hover:text-amber-400 transition" data-job-id="__JOB_ID__">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"></path></svg>
+            <span class="like-count">__LIKES__</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </script>
+
+  <script>
+    const categoryTabs = document.getElementById("category-tabs");
+    const galleryGrid = document.getElementById("gallery-grid");
+    const galleryEmpty = document.getElementById("gallery-empty");
+    const cardTemplate = document.getElementById("gallery-card-template").textContent;
+
+    let currentCategory = "";
+
+    function escapeHtml(str) {
+      const div = document.createElement("div");
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    async function loadGallery(category) {
+      const url = category ? `/api/gallery?category=${encodeURIComponent(category)}` : "/api/gallery";
+      const res = await fetch(url);
+      const data = await res.json();
+
+      galleryGrid.innerHTML = "";
+      if (!data.videos || data.videos.length === 0) {
+        galleryEmpty.classList.remove("hidden");
+        return;
+      }
+      galleryEmpty.classList.add("hidden");
+
+      data.videos.forEach((video) => {
+        const categoryLabel = data.categories[video.category] || video.category;
+        const html = cardTemplate
+          .replaceAll("__VIDEO_URL__", video.video_url)
+          .replaceAll("__CATEGORY_LABEL__", escapeHtml(categoryLabel))
+          .replaceAll("__SUJET__", escapeHtml(video.sujet))
+          .replaceAll("__AUTHOR__", escapeHtml(video.author_name || "un membre"))
+          .replaceAll("__LIKES__", video.likes_count)
+          .replaceAll("__JOB_ID__", video.job_id)
+          .replaceAll("__LIKED_CLASS__", video.liked_by_me ? "is-liked" : "");
+
+        const wrapper = document.createElement("div");
+        wrapper.innerHTML = html.trim();
+        galleryGrid.appendChild(wrapper.firstElementChild);
+      });
+
+      galleryGrid.querySelectorAll(".like-btn").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const jobId = btn.dataset.jobId;
+          try {
+            const res = await fetch(`/history/${jobId}/like`, { method: "POST" });
+            if (res.status === 401) {
+              window.location.href = "/app";
+              return;
+            }
+            const data = await res.json();
+            btn.classList.toggle("is-liked", data.liked);
+            btn.querySelector(".like-count").textContent = data.likes_count;
+          } catch (err) {
+            // Silencieux : un like raté n'empêche pas de continuer à parcourir la galerie.
+          }
+        });
+      });
+    }
+
+    categoryTabs.querySelectorAll(".category-tab").forEach((tab) => {
+      tab.addEventListener("click", () => {
+        currentCategory = tab.dataset.category;
+        categoryTabs.querySelectorAll(".category-tab").forEach((t) => t.classList.toggle("is-active", t === tab));
+        loadGallery(currentCategory);
+      });
+    });
+
+    loadGallery("");
+  </script>
+</body>
+</html>

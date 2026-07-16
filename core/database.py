@@ -63,9 +63,22 @@ def init_db() -> None:
                 duration TEXT NOT NULL,
                 orientation TEXT NOT NULL,
                 created_at TEXT NOT NULL,
+                is_public INTEGER NOT NULL DEFAULT 0,
+                category TEXT NOT NULL DEFAULT 'autre',
+                likes_count INTEGER NOT NULL DEFAULT 0,
                 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
             )
         """)
+        # Migration douce : ajoute les colonnes de galerie publique si la
+        # table "history" existait déjà sans elles.
+        existing_history_cols = {row["name"] for row in conn.execute("PRAGMA table_info(history)")}
+        if "is_public" not in existing_history_cols:
+            conn.execute("ALTER TABLE history ADD COLUMN is_public INTEGER NOT NULL DEFAULT 0")
+        if "category" not in existing_history_cols:
+            conn.execute("ALTER TABLE history ADD COLUMN category TEXT NOT NULL DEFAULT 'autre'")
+        if "likes_count" not in existing_history_cols:
+            conn.execute("ALTER TABLE history ADD COLUMN likes_count INTEGER NOT NULL DEFAULT 0")
+
         # Compte les générations par utilisateur et par jour calendaire (UTC),
         # pour appliquer le quota gratuit de 5 vidéos/jour.
         conn.execute("""
@@ -74,6 +87,18 @@ def init_db() -> None:
                 usage_date TEXT NOT NULL,
                 count INTEGER NOT NULL DEFAULT 0,
                 PRIMARY KEY (user_id, usage_date),
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+        """)
+        # Un utilisateur ne peut liker qu'une fois chaque vidéo publique :
+        # la clé primaire composite empêche les doubles likes au niveau DB.
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS video_likes (
+                job_id TEXT NOT NULL,
+                user_id TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                PRIMARY KEY (job_id, user_id),
+                FOREIGN KEY (job_id) REFERENCES history(job_id) ON DELETE CASCADE,
                 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
             )
         """)
@@ -210,7 +235,7 @@ def get_history_for_user(user_id: str, limit: int = 50) -> list[dict]:
             "SELECT * FROM history WHERE user_id = ? ORDER BY created_at DESC LIMIT ?",
             (user_id, limit),
         ).fetchall()
-        return [dict(r) | {"multi_fond": bool(r["multi_fond"])} for r in rows]
+        return [dict(r) | {"multi_fond": bool(r["multi_fond"]), "is_public": bool(r["is_public"])} for r in rows]
 
 
 def get_history_entry(job_id: str, user_id: str) -> dict | None:
@@ -218,7 +243,106 @@ def get_history_entry(job_id: str, user_id: str) -> dict | None:
         row = conn.execute(
             "SELECT * FROM history WHERE job_id = ? AND user_id = ?", (job_id, user_id)
         ).fetchone()
-        return dict(row) if row else None
+        if not row:
+            return None
+        return dict(row) | {"multi_fond": bool(row["multi_fond"]), "is_public": bool(row["is_public"])}
+
+
+VIDEO_CATEGORIES = {
+    "histoire": "Histoire",
+    "science": "Science",
+    "motivation": "Motivation",
+    "insolite": "Insolite",
+    "astuces": "Astuces",
+    "autre": "Autre",
+}
+
+
+def set_video_visibility(job_id: str, user_id: str, is_public: bool, category: str) -> bool:
+    """Publie/dépublie une vidéo de l'historique et fixe sa catégorie.
+
+    Ne modifie la ligne que si elle appartient bien à `user_id` (retourne
+    False sinon, pour empêcher un utilisateur de modifier la vidéo d'un
+    autre en devinant un job_id).
+    """
+    if category not in VIDEO_CATEGORIES:
+        category = "autre"
+    with _get_conn() as conn:
+        cursor = conn.execute(
+            "UPDATE history SET is_public = ?, category = ? WHERE job_id = ? AND user_id = ?",
+            (int(is_public), category, job_id, user_id),
+        )
+        return cursor.rowcount > 0
+
+
+def toggle_video_like(job_id: str, user_id: str) -> tuple[bool, int]:
+    """Ajoute ou retire le like de `user_id` sur la vidéo `job_id`.
+
+    Retourne (liked, likes_count) : `liked` indique le nouvel état (True si
+    on vient d'ajouter le like), `likes_count` le total à jour. N'agit que
+    sur des vidéos publiques.
+    """
+    with _get_conn() as conn:
+        video = conn.execute(
+            "SELECT is_public FROM history WHERE job_id = ?", (job_id,)
+        ).fetchone()
+        if not video or not video["is_public"]:
+            return False, 0
+
+        existing = conn.execute(
+            "SELECT 1 FROM video_likes WHERE job_id = ? AND user_id = ?", (job_id, user_id)
+        ).fetchone()
+
+        if existing:
+            conn.execute("DELETE FROM video_likes WHERE job_id = ? AND user_id = ?", (job_id, user_id))
+            conn.execute("UPDATE history SET likes_count = likes_count - 1 WHERE job_id = ?", (job_id,))
+            liked = False
+        else:
+            conn.execute(
+                "INSERT INTO video_likes (job_id, user_id, created_at) VALUES (?, ?, ?)",
+                (job_id, user_id, datetime.now(timezone.utc).isoformat()),
+            )
+            conn.execute("UPDATE history SET likes_count = likes_count + 1 WHERE job_id = ?", (job_id,))
+            liked = True
+
+        row = conn.execute("SELECT likes_count FROM history WHERE job_id = ?", (job_id,)).fetchone()
+        return liked, row["likes_count"]
+
+
+def get_public_gallery(category: str | None = None, limit: int = 60) -> list[dict]:
+    """Retourne les vidéos publiques, les plus likées d'abord, avec le nom
+    de l'auteur (pas d'email ni d'infos privées)."""
+    with _get_conn() as conn:
+        query = """
+            SELECT history.job_id, history.sujet, history.video_url, history.orientation,
+                   history.category, history.likes_count, history.created_at,
+                   users.name AS author_name
+            FROM history
+            JOIN users ON users.id = history.user_id
+            WHERE history.is_public = 1
+        """
+        params: list = []
+        if category and category in VIDEO_CATEGORIES:
+            query += " AND history.category = ?"
+            params.append(category)
+        query += " ORDER BY history.likes_count DESC, history.created_at DESC LIMIT ?"
+        params.append(limit)
+
+        rows = conn.execute(query, params).fetchall()
+        return [dict(r) for r in rows]
+
+
+def user_liked_videos(user_id: str, job_ids: list[str]) -> set[str]:
+    """Retourne le sous-ensemble de `job_ids` déjà likés par `user_id`."""
+    if not job_ids:
+        return set()
+    with _get_conn() as conn:
+        placeholders = ",".join("?" for _ in job_ids)
+        rows = conn.execute(
+            f"SELECT job_id FROM video_likes WHERE user_id = ? AND job_id IN ({placeholders})",
+            (user_id, *job_ids),
+        ).fetchall()
+        return {row["job_id"] for row in rows}
 
 
 def delete_history_entry(job_id: str, user_id: str) -> bool:

@@ -268,6 +268,9 @@
               <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
               Gratuit pour commencer
             </span>
+            <a href="/gallery" class="hidden sm:inline-flex text-sm font-medium text-ink-300 hover:text-white px-3 py-2 rounded-md hover:bg-white/5 transition">
+              Galerie
+            </a>
             <a href="/" class="text-sm font-medium text-ink-300 hover:text-white px-3 py-2 rounded-md hover:bg-white/5 transition">
               ← Accueil
             </a>
@@ -287,193 +290,192 @@
 
       <!-- Hero + generator panel -->
       <div class="relative overflow-hidden hero-glow grain">
-        <main class="relative max-w-7xl mx-auto px-6 pt-16 pb-20">
+        <main class="relative max-w-[1600px] mx-auto px-6 sm:px-10 pt-16 pb-24">
 
-          <div class="grid lg:grid-cols-[1.05fr_0.95fr] gap-14 items-center">
-            <!-- Left: pitch + generator -->
-            <div class="rise rise-1">
-              <span class="inline-flex items-center gap-2 text-xs font-medium tracking-widest text-amber-400 uppercase">
-                <span class="h-px w-6 bg-amber-400/60"></span>
-                Studio de production automatisé
-              </span>
-              <h1 class="mt-5 font-display text-4xl sm:text-5xl font-semibold tracking-tight text-white leading-[1.08]">
-                Une idée. Une vidéo <span class="italic text-amber-400">prête à publier.</span>
-              </h1>
-              <p class="mt-4 text-lg text-ink-300 max-w-xl leading-relaxed">
-                Écris un sujet : script, voix off, fond et sous-titres sont générés et montés en une seule passe — comme la vidéo à droite, générée par ce site il y a quelques minutes.
-              </p>
+          <!-- Centered pitch, full width -->
+          <div class="rise rise-1 text-center max-w-4xl mx-auto">
+            <span class="inline-flex items-center gap-2 text-xs font-medium tracking-widest text-amber-400 uppercase">
+              <span class="h-px w-6 bg-amber-400/60"></span>
+              Studio de production automatisé
+              <span class="h-px w-6 bg-amber-400/60"></span>
+            </span>
+            <h1 class="mt-6 font-display text-5xl sm:text-6xl lg:text-7xl font-semibold tracking-tight text-white leading-[1.03]">
+              Une idée. Une vidéo <span class="italic text-amber-400">prête à publier.</span>
+            </h1>
+            <p class="mt-6 text-xl text-ink-300 max-w-2xl mx-auto leading-relaxed">
+              Écris un sujet : script, voix off, fond et sous-titres sont générés et montés en une seule passe.
+            </p>
 
-              <div class="mt-8 flex items-center gap-8 font-mono-num text-sm">
-                <div>
-                  <p class="text-2xl text-white font-semibold">4</p>
-                  <p class="text-ink-400 mt-0.5">étapes automatisées</p>
-                </div>
-                <div class="h-8 w-px bg-white/10"></div>
-                <div>
-                  <p class="text-2xl text-white font-semibold">~60s</p>
-                  <p class="text-ink-400 mt-0.5">par génération</p>
-                </div>
-                <div class="h-8 w-px bg-white/10"></div>
-                <div>
-                  <p class="text-2xl text-white font-semibold">0€</p>
-                  <p class="text-ink-400 mt-0.5">coût d'usage</p>
-                </div>
+            <div class="mt-10 flex items-center justify-center gap-10 font-mono-num text-sm">
+              <div>
+                <p class="text-3xl text-white font-semibold">4</p>
+                <p class="text-ink-400 mt-1">étapes automatisées</p>
               </div>
-
-              <!-- Generator card -->
-              <div class="mt-9 p-px rounded-2xl card-edge shadow-2xl shadow-black/60">
-                <div class="bg-ink-900 rounded-[15px] p-5 sm:p-6">
-                  <div id="usage-banner" class="hidden mb-4 flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/[0.02] px-4 py-2.5 text-xs">
-                    <span id="usage-banner-text" class="text-ink-300"></span>
-                    <a href="/#section-tarifs" id="usage-banner-cta" class="hidden shrink-0 inline-flex items-center gap-1 font-semibold text-amber-400 hover:text-amber-300 transition">
-                      👑 Passer Premium
-                    </a>
-                  </div>
-
-                  <form id="generate-form" class="flex flex-col gap-4">
-                    <!-- Prompt-style textarea with embedded submit button -->
-                    <div class="relative">
-                      <textarea
-                        id="sujet"
-                        name="sujet"
-                        rows="3"
-                        required
-                        placeholder="Plan un sujet, un script ou une vidéo..."
-                        class="w-full resize-none rounded-xl bg-ink-950 border border-white/10 px-4 py-4 pr-16 text-[15px] text-ink-100 placeholder-ink-500 focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-amber-400/40 transition"
-                      ></textarea>
-                      <button
-                        type="submit"
-                        id="submit-btn"
-                        aria-label="Générer ma vidéo"
-                        class="absolute right-3 bottom-3 h-10 w-10 rounded-full bg-amber-400 hover:bg-amber-300 text-ink-950 flex items-center justify-center shadow-[0_1px_0_0_rgba(255,255,255,0.35)_inset] transition active:scale-[0.95] disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <svg id="btn-spinner" class="hidden spinner h-5 w-5" viewBox="0 0 24 24" fill="none">
-                          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                          <path class="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
-                        </svg>
-                        <svg id="btn-icon" class="h-4.5 w-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                          <line x1="12" y1="19" x2="12" y2="5"></line>
-                          <polyline points="5 12 12 5 19 12"></polyline>
-                        </svg>
-                      </button>
-                    </div>
-
-                    <!-- Compact settings row -->
-                    <div class="flex flex-wrap items-center gap-2">
-                      <select
-                        id="voice-select"
-                        name="voice"
-                        class="rounded-lg bg-white/[0.03] border border-white/10 pl-3 pr-8 py-2 text-xs text-ink-200 focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-amber-400/40 transition cursor-pointer"
-                      >
-                        <option value="">Voix...</option>
-                      </select>
-
-                      <div id="orientation-group" class="flex items-center gap-1">
-                        <!-- Boutons de format injectés en JS -->
-                      </div>
-
-                      <div id="duration-group" class="flex items-center gap-1">
-                        <!-- Boutons de durée injectés en JS -->
-                      </div>
-
-                      <button
-                        type="button"
-                        id="multi-fond-toggle"
-                        aria-pressed="false"
-                        class="relative flex items-center gap-1.5 rounded-lg border px-2.5 py-2 text-xs font-medium transition"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg>
-                        Fonds multiples
-                        <span class="premium-crown hidden absolute -top-1.5 -right-1.5 text-[10px]">👑</span>
-                      </button>
-                    </div>
-                  </form>
-
-                  <div id="status-box" class="hidden mt-5 pt-4 border-t border-white/[0.06]">
-                    <div class="flex items-center justify-between">
-                      <div class="step-item flex items-center gap-2.5" data-step="0">
-                        <span class="step-dot h-6 w-6 rounded-full border border-white/15 flex items-center justify-center shrink-0 transition-colors">
-                          <span class="step-check hidden text-ink-950 text-xs">✓</span>
-                          <span class="step-spin hidden h-2.5 w-2.5 rounded-full border-2 border-ink-950 border-t-transparent spinner"></span>
-                          <span class="step-idle h-1.5 w-1.5 rounded-full bg-ink-500"></span>
-                        </span>
-                        <span class="step-label text-xs text-ink-400 hidden sm:inline">Script</span>
-                      </div>
-                      <div class="step-line flex-1 h-px bg-white/10 mx-1.5"></div>
-                      <div class="step-item flex items-center gap-2.5" data-step="1">
-                        <span class="step-dot h-6 w-6 rounded-full border border-white/15 flex items-center justify-center shrink-0 transition-colors">
-                          <span class="step-check hidden text-ink-950 text-xs">✓</span>
-                          <span class="step-spin hidden h-2.5 w-2.5 rounded-full border-2 border-ink-950 border-t-transparent spinner"></span>
-                          <span class="step-idle h-1.5 w-1.5 rounded-full bg-ink-500"></span>
-                        </span>
-                        <span class="step-label text-xs text-ink-400 hidden sm:inline">Voix</span>
-                      </div>
-                      <div class="step-line flex-1 h-px bg-white/10 mx-1.5"></div>
-                      <div class="step-item flex items-center gap-2.5" data-step="2">
-                        <span class="step-dot h-6 w-6 rounded-full border border-white/15 flex items-center justify-center shrink-0 transition-colors">
-                          <span class="step-check hidden text-ink-950 text-xs">✓</span>
-                          <span class="step-spin hidden h-2.5 w-2.5 rounded-full border-2 border-ink-950 border-t-transparent spinner"></span>
-                          <span class="step-idle h-1.5 w-1.5 rounded-full bg-ink-500"></span>
-                        </span>
-                        <span class="step-label text-xs text-ink-400 hidden sm:inline">Fond</span>
-                      </div>
-                      <div class="step-line flex-1 h-px bg-white/10 mx-1.5"></div>
-                      <div class="step-item flex items-center gap-2.5" data-step="3">
-                        <span class="step-dot h-6 w-6 rounded-full border border-white/15 flex items-center justify-center shrink-0 transition-colors">
-                          <span class="step-check hidden text-ink-950 text-xs">✓</span>
-                          <span class="step-spin hidden h-2.5 w-2.5 rounded-full border-2 border-ink-950 border-t-transparent spinner"></span>
-                          <span class="step-idle h-1.5 w-1.5 rounded-full bg-ink-500"></span>
-                        </span>
-                        <span class="step-label text-xs text-ink-400 hidden sm:inline">Montage</span>
-                      </div>
-                    </div>
-                    <p id="status-text" class="mt-4 text-sm text-ink-300 text-center">Initialisation...</p>
-                  </div>
-
-                  <div id="error-box" class="hidden mt-4 rounded-lg border border-red-500/25 bg-red-500/10 text-red-300 text-sm px-4 py-3 text-left"></div>
-                </div>
+              <div class="h-10 w-px bg-white/10"></div>
+              <div>
+                <p class="text-3xl text-white font-semibold">~60s</p>
+                <p class="text-ink-400 mt-1">par génération</p>
               </div>
-
-              <!-- Featured shortcuts: real presets, not fake features -->
-              <div class="mt-5 flex flex-wrap items-center gap-2">
-                <span class="text-xs text-ink-500 mr-1">Idées :</span>
-                <button type="button" class="shortcut-chip inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.02] hover:bg-white/[0.06] hover:border-amber-400/30 px-3 py-1.5 text-xs text-ink-300 hover:text-white transition" data-preset="Un fait fascinant et méconnu sur l'espace">
-                  🪐 Fait insolite
-                </button>
-                <button type="button" class="shortcut-chip inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.02] hover:bg-white/[0.06] hover:border-amber-400/30 px-3 py-1.5 text-xs text-ink-300 hover:text-white transition" data-preset="3 astuces simples pour être plus productif au quotidien">
-                  💡 Astuces pratiques
-                </button>
-                <button type="button" class="shortcut-chip inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.02] hover:bg-white/[0.06] hover:border-amber-400/30 px-3 py-1.5 text-xs text-ink-300 hover:text-white transition" data-preset="Un événement historique méconnu mais fascinant">
-                  🏛️ Histoire
-                </button>
-                <button type="button" class="shortcut-chip inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.02] hover:bg-white/[0.06] hover:border-amber-400/30 px-3 py-1.5 text-xs text-ink-300 hover:text-white transition" data-preset="Une théorie scientifique expliquée simplement">
-                  🔬 Science
-                </button>
+              <div class="h-10 w-px bg-white/10"></div>
+              <div>
+                <p class="text-3xl text-white font-semibold">0€</p>
+                <p class="text-ink-400 mt-1">coût d'usage</p>
               </div>
+            </div>
+          </div>
 
-              <!-- Result -->
-              <div id="result-box" class="hidden w-full mt-8 flex flex-col items-start gap-4">
-                <h2 class="font-display text-xl font-semibold text-white">Ta vidéo est prête</h2>
-                <video
-                  id="result-video"
-                  controls
-                  class="w-full max-w-[380px] aspect-[9/16] rounded-2xl border border-white/10 shadow-2xl shadow-black/60 bg-black transition-[aspect-ratio,max-width]"
-                ></video>
-                <a
-                  id="download-link"
-                  href="#"
-                  download
-                  class="inline-flex items-center gap-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-ink-100 font-medium py-2.5 px-5 transition"
-                >
-                  Télécharger la vidéo
+          <!-- Huge generator card, full width -->
+          <div class="rise rise-2 mt-14 grid lg:grid-cols-[1.3fr_0.7fr] gap-0 rounded-3xl overflow-hidden card-edge shadow-2xl shadow-black/60 p-px">
+            <div class="bg-ink-900 rounded-l-[23px] lg:rounded-r-none rounded-r-[23px] p-8 sm:p-10">
+              <div id="usage-banner" class="hidden mb-6 flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.02] px-5 py-3 text-sm">
+                <span id="usage-banner-text" class="text-ink-300"></span>
+                <a href="/#section-tarifs" id="usage-banner-cta" class="hidden shrink-0 inline-flex items-center gap-1 font-semibold text-amber-400 hover:text-amber-300 transition">
+                  👑 Passer Premium
                 </a>
+              </div>
+
+              <form id="generate-form" class="flex flex-col gap-5">
+                <!-- Huge prompt-style textarea with embedded submit button -->
+                <div class="relative">
+                  <textarea
+                    id="sujet"
+                    name="sujet"
+                    rows="6"
+                    required
+                    placeholder="De quoi parle ta vidéo ? Ex : « 3 astuces psychologiques pour convaincre facilement », « L'histoire méconnue de la conquête spatiale »..."
+                    class="w-full resize-none rounded-2xl bg-ink-950 border border-white/10 px-6 py-6 pr-20 text-lg text-ink-100 placeholder-ink-500 leading-relaxed focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-amber-400/40 transition"
+                  ></textarea>
+                  <button
+                    type="submit"
+                    id="submit-btn"
+                    aria-label="Générer ma vidéo"
+                    class="absolute right-4 bottom-4 h-14 w-14 rounded-full bg-amber-400 hover:bg-amber-300 text-ink-950 flex items-center justify-center shadow-[0_1px_0_0_rgba(255,255,255,0.35)_inset] transition active:scale-[0.95] disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <svg id="btn-spinner" class="hidden spinner h-6 w-6" viewBox="0 0 24 24" fill="none">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                      <path class="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                    </svg>
+                    <svg id="btn-icon" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                      <line x1="12" y1="19" x2="12" y2="5"></line>
+                      <polyline points="5 12 12 5 19 12"></polyline>
+                    </svg>
+                  </button>
+                </div>
+
+                <!-- Settings row -->
+                <div class="flex flex-wrap items-center gap-2.5">
+                  <select
+                    id="voice-select"
+                    name="voice"
+                    class="rounded-lg bg-white/[0.03] border border-white/10 pl-4 pr-9 py-2.5 text-sm text-ink-200 focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-amber-400/40 transition cursor-pointer"
+                  >
+                    <option value="">Voix...</option>
+                  </select>
+
+                  <div id="orientation-group" class="flex items-center gap-1.5">
+                    <!-- Boutons de format injectés en JS -->
+                  </div>
+
+                  <div id="duration-group" class="flex items-center gap-1.5">
+                    <!-- Boutons de durée injectés en JS -->
+                  </div>
+
+                  <button
+                    type="button"
+                    id="multi-fond-toggle"
+                    aria-pressed="false"
+                    class="relative flex items-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium transition"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg>
+                    Fonds multiples
+                    <span class="premium-crown hidden absolute -top-1.5 -right-1.5 text-xs">👑</span>
+                  </button>
+                </div>
+              </form>
+
+              <div id="status-box" class="hidden mt-7 pt-6 border-t border-white/[0.06]">
+                <div class="flex items-center justify-between">
+                  <div class="step-item flex items-center gap-2.5" data-step="0">
+                    <span class="step-dot h-7 w-7 rounded-full border border-white/15 flex items-center justify-center shrink-0 transition-colors">
+                      <span class="step-check hidden text-ink-950 text-xs">✓</span>
+                      <span class="step-spin hidden h-3 w-3 rounded-full border-2 border-ink-950 border-t-transparent spinner"></span>
+                      <span class="step-idle h-1.5 w-1.5 rounded-full bg-ink-500"></span>
+                    </span>
+                    <span class="step-label text-sm text-ink-400 hidden sm:inline">Script</span>
+                  </div>
+                  <div class="step-line flex-1 h-px bg-white/10 mx-1.5"></div>
+                  <div class="step-item flex items-center gap-2.5" data-step="1">
+                    <span class="step-dot h-7 w-7 rounded-full border border-white/15 flex items-center justify-center shrink-0 transition-colors">
+                      <span class="step-check hidden text-ink-950 text-xs">✓</span>
+                      <span class="step-spin hidden h-3 w-3 rounded-full border-2 border-ink-950 border-t-transparent spinner"></span>
+                      <span class="step-idle h-1.5 w-1.5 rounded-full bg-ink-500"></span>
+                    </span>
+                    <span class="step-label text-sm text-ink-400 hidden sm:inline">Voix</span>
+                  </div>
+                  <div class="step-line flex-1 h-px bg-white/10 mx-1.5"></div>
+                  <div class="step-item flex items-center gap-2.5" data-step="2">
+                    <span class="step-dot h-7 w-7 rounded-full border border-white/15 flex items-center justify-center shrink-0 transition-colors">
+                      <span class="step-check hidden text-ink-950 text-xs">✓</span>
+                      <span class="step-spin hidden h-3 w-3 rounded-full border-2 border-ink-950 border-t-transparent spinner"></span>
+                      <span class="step-idle h-1.5 w-1.5 rounded-full bg-ink-500"></span>
+                    </span>
+                    <span class="step-label text-sm text-ink-400 hidden sm:inline">Fond</span>
+                  </div>
+                  <div class="step-line flex-1 h-px bg-white/10 mx-1.5"></div>
+                  <div class="step-item flex items-center gap-2.5" data-step="3">
+                    <span class="step-dot h-7 w-7 rounded-full border border-white/15 flex items-center justify-center shrink-0 transition-colors">
+                      <span class="step-check hidden text-ink-950 text-xs">✓</span>
+                      <span class="step-spin hidden h-3 w-3 rounded-full border-2 border-ink-950 border-t-transparent spinner"></span>
+                      <span class="step-idle h-1.5 w-1.5 rounded-full bg-ink-500"></span>
+                    </span>
+                    <span class="step-label text-sm text-ink-400 hidden sm:inline">Montage</span>
+                  </div>
+                </div>
+                <p id="status-text" class="mt-5 text-base text-ink-300 text-center">Initialisation...</p>
+              </div>
+
+              <div id="error-box" class="hidden mt-5 rounded-xl border border-red-500/25 bg-red-500/10 text-red-300 text-sm px-5 py-4 text-left"></div>
+
+              <!-- Featured shortcuts, real cards -->
+              <div class="mt-8 pt-7 border-t border-white/[0.06]">
+                <p class="text-xs font-medium tracking-widest text-ink-500 uppercase mb-3">Idées pour démarrer</p>
+                <div class="grid sm:grid-cols-2 gap-2.5">
+                  <button type="button" class="shortcut-chip flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.02] hover:bg-white/[0.06] hover:border-amber-400/30 px-4 py-3.5 text-left transition" data-preset="Un fait fascinant et méconnu sur l'espace">
+                    <span class="text-xl">🪐</span>
+                    <span>
+                      <span class="block text-sm font-medium text-ink-100">Fait insolite</span>
+                      <span class="block text-xs text-ink-400 mt-0.5">Un secret de l'espace</span>
+                    </span>
+                  </button>
+                  <button type="button" class="shortcut-chip flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.02] hover:bg-white/[0.06] hover:border-amber-400/30 px-4 py-3.5 text-left transition" data-preset="3 astuces simples pour être plus productif au quotidien">
+                    <span class="text-xl">💡</span>
+                    <span>
+                      <span class="block text-sm font-medium text-ink-100">Astuces pratiques</span>
+                      <span class="block text-xs text-ink-400 mt-0.5">Productivité au quotidien</span>
+                    </span>
+                  </button>
+                  <button type="button" class="shortcut-chip flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.02] hover:bg-white/[0.06] hover:border-amber-400/30 px-4 py-3.5 text-left transition" data-preset="Un événement historique méconnu mais fascinant">
+                    <span class="text-xl">🏛️</span>
+                    <span>
+                      <span class="block text-sm font-medium text-ink-100">Histoire</span>
+                      <span class="block text-xs text-ink-400 mt-0.5">Un événement méconnu</span>
+                    </span>
+                  </button>
+                  <button type="button" class="shortcut-chip flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.02] hover:bg-white/[0.06] hover:border-amber-400/30 px-4 py-3.5 text-left transition" data-preset="Une théorie scientifique expliquée simplement">
+                    <span class="text-xl">🔬</span>
+                    <span>
+                      <span class="block text-sm font-medium text-ink-100">Science</span>
+                      <span class="block text-xs text-ink-400 mt-0.5">Une théorie expliquée simplement</span>
+                    </span>
+                  </button>
+                </div>
               </div>
             </div>
 
-            <!-- Right: phone mockup with a real generated video -->
-            <div class="rise rise-2 relative flex justify-center lg:justify-end">
-              <div class="phone-drift relative w-[260px] sm:w-[300px] aspect-[9/16] rounded-[2rem] border border-white/10 bg-ink-900 p-2 shadow-2xl shadow-black/70">
-                <div class="relative h-full w-full rounded-[1.6rem] overflow-hidden bg-black">
+            <!-- Right panel of the generator card: live phone preview -->
+            <div class="relative bg-ink-950/60 border-t lg:border-t-0 lg:border-l border-white/[0.06] p-8 sm:p-10 flex flex-col items-center justify-center">
+              <div class="phone-drift relative w-[220px] sm:w-[240px] aspect-[9/16] rounded-[1.8rem] border border-white/10 bg-ink-900 p-2 shadow-2xl shadow-black/70">
+                <div class="relative h-full w-full rounded-[1.4rem] overflow-hidden bg-black">
                   <video
                     class="absolute inset-0 h-full w-full object-cover"
                     src="/static/demo/app-hero-demo.mp4"
@@ -484,64 +486,73 @@
                     preload="auto"
                   ></video>
 
-                  <div class="absolute top-3 left-0 right-0 flex justify-center z-10">
-                    <div class="h-5 w-24 rounded-full bg-black/40"></div>
+                  <div class="absolute top-2.5 left-0 right-0 flex justify-center z-10">
+                    <div class="h-4 w-20 rounded-full bg-black/40"></div>
                   </div>
 
-                  <div class="absolute bottom-0 left-0 right-0 p-4 flex items-center justify-between z-10 bg-gradient-to-t from-black/60 to-transparent">
-                    <div class="flex items-center gap-2">
-                      <div class="h-8 w-8 rounded-full bg-amber-400 flex items-center justify-center text-ink-950 font-display font-semibold text-xs">F</div>
-                      <span class="text-white text-xs font-medium">facelessai.mp4</span>
-                    </div>
+                  <div class="absolute bottom-0 left-0 right-0 p-3 flex items-center justify-between z-10 bg-gradient-to-t from-black/60 to-transparent">
                     <div class="flex items-center gap-1.5">
-                      <span class="h-1.5 w-1.5 rounded-full bg-white/70"></span>
-                      <span class="h-1.5 w-1.5 rounded-full bg-white/40"></span>
-                      <span class="h-1.5 w-1.5 rounded-full bg-white/40"></span>
+                      <div class="h-6 w-6 rounded-full bg-amber-400 flex items-center justify-center text-ink-950 font-display font-semibold text-[10px]">F</div>
+                      <span class="text-white text-[10px] font-medium">facelessai.mp4</span>
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div class="rise rise-3 hidden sm:flex absolute -left-6 top-16 items-center gap-2.5 rounded-xl border border-white/10 bg-ink-900/95 backdrop-blur px-4 py-3 shadow-2xl shadow-black/60">
+              <div class="rise rise-3 hidden sm:flex mt-5 items-center gap-2.5 rounded-xl border border-white/10 bg-ink-900/95 backdrop-blur px-4 py-2.5 shadow-xl shadow-black/40">
                 <span class="h-2 w-2 rounded-full bg-emerald-400"></span>
-                <span class="text-xs text-ink-200 font-medium">Montage terminé</span>
-              </div>
-              <div class="rise rise-3 hidden sm:flex absolute -right-4 bottom-24 items-center gap-2.5 rounded-xl border border-white/10 bg-ink-900/95 backdrop-blur px-4 py-3 shadow-2xl shadow-black/60">
-                <span class="text-amber-400">🎙️</span>
-                <span class="text-xs text-ink-200 font-medium">Voix off générée</span>
+                <span class="text-xs text-ink-200 font-medium">Généré par ce site à l'instant</span>
               </div>
 
-              <div class="waveform absolute -bottom-10 left-1/2 -translate-x-1/2 hidden sm:flex items-end gap-[3px] h-8 opacity-50" aria-hidden="true">
+              <div class="waveform mt-4 flex items-end justify-center gap-[3px] h-6 opacity-50" aria-hidden="true">
                 <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
-                <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+                <span></span><span></span><span></span><span></span>
               </div>
             </div>
+          </div>
+
+          <!-- Result -->
+          <div id="result-box" class="hidden mt-10 flex flex-col items-center gap-4">
+            <h2 class="font-display text-2xl font-semibold text-white">Ta vidéo est prête</h2>
+            <video
+              id="result-video"
+              controls
+              class="w-full max-w-[420px] aspect-[9/16] rounded-2xl border border-white/10 shadow-2xl shadow-black/60 bg-black transition-[aspect-ratio,max-width]"
+            ></video>
+            <a
+              id="download-link"
+              href="#"
+              download
+              class="inline-flex items-center gap-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-ink-100 font-medium py-2.5 px-5 transition"
+            >
+              Télécharger la vidéo
+            </a>
           </div>
 
           <!-- What this pipeline actually does, reused as trust signal on the tool page itself -->
           <div class="reveal mt-28 border-t border-white/[0.06] pt-16">
             <span class="text-xs font-medium tracking-widest text-amber-400 uppercase">Le pipeline complet</span>
-            <h2 class="mt-3 font-display text-2xl sm:text-3xl font-semibold tracking-tight text-white">Tout ce qu'il te faut, déjà branché</h2>
+            <h2 class="mt-3 font-display text-3xl sm:text-4xl font-semibold tracking-tight text-white">Tout ce qu'il te faut, déjà branché</h2>
             <div class="mt-10 grid sm:grid-cols-2 lg:grid-cols-4 gap-px bg-white/[0.06] rounded-2xl overflow-hidden border border-white/[0.06]">
-              <div class="feature-card bg-ink-900 p-6 text-left">
+              <div class="feature-card bg-ink-900 p-7 text-left">
                 <p class="feature-index font-mono-num text-xs text-amber-400/70 mb-4 transition-colors">01</p>
-                <h3 class="font-display font-semibold text-white text-lg">Script par IA</h3>
-                <p class="mt-2 text-sm text-ink-300 leading-relaxed">Un texte de voix off percutant généré à partir de ton sujet, via Groq.</p>
+                <h3 class="font-display font-semibold text-white text-xl">Script par IA</h3>
+                <p class="mt-2.5 text-sm text-ink-300 leading-relaxed">Un texte de voix off percutant généré à partir de ton sujet, via Groq.</p>
               </div>
-              <div class="feature-card bg-ink-900 p-6 text-left">
+              <div class="feature-card bg-ink-900 p-7 text-left">
                 <p class="feature-index font-mono-num text-xs text-amber-400/70 mb-4 transition-colors">02</p>
-                <h3 class="font-display font-semibold text-white text-lg">Voix off naturelle</h3>
-                <p class="mt-2 text-sm text-ink-300 leading-relaxed">Plusieurs voix françaises et francophones au choix, via edge-tts.</p>
+                <h3 class="font-display font-semibold text-white text-xl">Voix off naturelle</h3>
+                <p class="mt-2.5 text-sm text-ink-300 leading-relaxed">Plusieurs voix françaises et francophones au choix, via edge-tts.</p>
               </div>
-              <div class="feature-card bg-ink-900 p-6 text-left">
+              <div class="feature-card bg-ink-900 p-7 text-left">
                 <p class="feature-index font-mono-num text-xs text-amber-400/70 mb-4 transition-colors">03</p>
-                <h3 class="font-display font-semibold text-white text-lg">Fonds libres de droits</h3>
-                <p class="mt-2 text-sm text-ink-300 leading-relaxed">Vidéos de fond assorties au sujet, simples ou multiples, via Pexels.</p>
+                <h3 class="font-display font-semibold text-white text-xl">Fonds libres de droits</h3>
+                <p class="mt-2.5 text-sm text-ink-300 leading-relaxed">Vidéos de fond assorties au sujet, simples ou multiples, via Pexels.</p>
               </div>
-              <div class="feature-card bg-ink-900 p-6 text-left">
+              <div class="feature-card bg-ink-900 p-7 text-left">
                 <p class="feature-index font-mono-num text-xs text-amber-400/70 mb-4 transition-colors">04</p>
-                <h3 class="font-display font-semibold text-white text-lg">Sous-titres incrustés</h3>
-                <p class="mt-2 text-sm text-ink-300 leading-relaxed">Montage automatique, prêt pour TikTok, Shorts et Reels.</p>
+                <h3 class="font-display font-semibold text-white text-xl">Sous-titres incrustés</h3>
+                <p class="mt-2.5 text-sm text-ink-300 leading-relaxed">Montage automatique, prêt pour TikTok, Shorts et Reels.</p>
               </div>
             </div>
           </div>
@@ -1209,6 +1220,13 @@
 
         setStep(STEPS.length);
         setTimeout(() => statusBox.classList.add("hidden"), 500);
+
+        if (data.job_id) {
+          // Connecté : la vidéo a une entrée d'historique, direction sa page
+          // dédiée (choix de visibilité/catégorie, pas juste un aperçu ici).
+          window.location.href = `/result/${data.job_id}`;
+          return;
+        }
 
         resultVideo.src = data.video_url;
         downloadLink.href = data.video_url;
