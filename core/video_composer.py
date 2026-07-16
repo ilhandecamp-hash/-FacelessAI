@@ -249,8 +249,8 @@ def compose_video(
         fps=30,
         codec="libx264",
         audio_codec="aac",
-        threads=4,
-        preset="medium",
+        threads=1,
+        preset="ultrafast",
         logger=None,
     )
 

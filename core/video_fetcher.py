@@ -12,8 +12,17 @@ ORIENTATIONS = {"portrait": "portrait", "paysage": "landscape"}
 DEFAULT_ORIENTATION = "portrait"
 
 
+
+# Limite volontairement la résolution des vidéos de fond téléchargées : le
+# serveur tourne avec 512 Mo de RAM sur le plan gratuit Render, et décoder des
+# sources 2K/4K image par image avec moviepy y provoque un OOM silencieux
+# (le process est tué par l'hôte, sans exception Python à intercepter).
+MAX_SOURCE_DIMENSION = 1280
+
+
 def _pick_best_video_file(video: dict, orientation: str) -> str | None:
-    """Choisit le meilleur fichier vidéo pour l'orientation demandée (qualité HD si possible)."""
+    """Choisit le meilleur fichier vidéo pour l'orientation demandée, plafonné à
+    une résolution raisonnable à décoder (voir MAX_SOURCE_DIMENSION)."""
     files = video.get("video_files", [])
     if not files:
         return None
@@ -23,6 +32,14 @@ def _pick_best_video_file(video: dict, orientation: str) -> str | None:
         if not w or not h:
             return False
         return h > w if orientation == "portrait" else w > h
+
+    def is_small_enough(f: dict) -> bool:
+        w, h = f.get("width"), f.get("height")
+        return bool(w and h and max(w, h) <= MAX_SOURCE_DIMENSION)
+
+    candidates = [f for f in files if is_matching_orientation(f) and is_small_enough(f)]
+    if candidates:
+        return max(candidates, key=lambda f: (f.get("width") or 0) * (f.get("height") or 0))["link"]
 
     oriented_hd = [f for f in files if is_matching_orientation(f) and f.get("quality") == "hd"]
     if oriented_hd:
