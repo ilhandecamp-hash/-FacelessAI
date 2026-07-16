@@ -63,22 +63,49 @@ def init_db() -> None:
 
 
 def upsert_user(user_id: str, email: str, name: str, picture: str | None) -> dict:
-    """Crée l'utilisateur s'il n'existe pas, ou met à jour ses infos de profil sinon.
+    """Crée l'utilisateur s'il n'existe pas, ou met à jour son profil sinon.
 
-    `user_id` est préfixé par le fournisseur (ex: "github:12345") pour les
-    utilisateurs Google (identifiant "sub" brut, déjà unique côté Google) afin
-    d'éviter toute collision entre espaces d'identifiants de deux fournisseurs.
+    Les comptes sont fusionnés par email : si la même personne se connecte
+    une fois avec Google puis avec GitHub (même email), c'est le même compte
+    et le même historique — mais nom/avatar affichés reflètent toujours le
+    dernier fournisseur utilisé pour se connecter, pas le premier.
+
+    `user_id` est préfixé par le fournisseur (ex: "github:12345", vs l'ID
+    "sub" brut pour Google) uniquement pour distinguer l'origine de la
+    dernière connexion ; la ligne en base reste identifiée par son email.
     """
     with _get_conn() as conn:
-        conn.execute(
-            """
-            INSERT INTO users (id, email, name, picture, created_at)
-            VALUES (?, ?, ?, ?, ?)
-            ON CONFLICT(id) DO UPDATE SET email = excluded.email, name = excluded.name, picture = excluded.picture
-            """,
-            (user_id, email, name, picture, datetime.now(timezone.utc).isoformat()),
-        )
-        row = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+        existing = conn.execute("SELECT id FROM users WHERE email = ?", (email,)).fetchone()
+
+        if existing:
+            old_id = existing["id"]
+            if old_id != user_id:
+                # Changer l'id d'un utilisateur référencé par des lignes
+                # d'historique nécessite de désactiver temporairement les
+                # contraintes FK : ni "renommer users.id" ni "réattacher
+                # history.user_id" ne peut se faire en premier sans violer
+                # la contrainte dans un sens ou dans l'autre.
+                conn.execute("PRAGMA foreign_keys = OFF")
+                conn.execute(
+                    "UPDATE users SET id = ?, name = ?, picture = ? WHERE email = ?",
+                    (user_id, name, picture, email),
+                )
+                conn.execute(
+                    "UPDATE history SET user_id = ? WHERE user_id = ?", (user_id, old_id)
+                )
+                conn.execute("PRAGMA foreign_keys = ON")
+            else:
+                conn.execute(
+                    "UPDATE users SET name = ?, picture = ? WHERE email = ?",
+                    (name, picture, email),
+                )
+        else:
+            conn.execute(
+                "INSERT INTO users (id, email, name, picture, created_at) VALUES (?, ?, ?, ?, ?)",
+                (user_id, email, name, picture, datetime.now(timezone.utc).isoformat()),
+            )
+
+        row = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
         return dict(row)
 
 
