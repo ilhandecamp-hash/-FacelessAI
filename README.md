@@ -81,6 +81,17 @@ static/
 
 Ce projet effectue du traitement vidéo (MoviePy/ffmpeg) qui peut prendre de quelques secondes à plusieurs minutes selon la durée demandée, et écrit des fichiers sur disque. Il n'est **pas compatible avec des plateformes serverless à courte durée d'exécution** (ex. Vercel Functions) sans adaptation significative (file d'attente asynchrone, stockage externe). Il convient nativement à un hébergement type VPS, Railway, Render ou Fly.io où le process Python tourne en continu.
 
+### Déployer sur Render (gratuit)
+
+Le fichier `render.yaml` à la racine du projet configure automatiquement le service. Étapes :
+
+1. Sur [render.com](https://render.com), créer un compte et cliquer **New > Blueprint**.
+2. Connecter ce dépôt GitHub — Render détecte `render.yaml` automatiquement.
+3. Renseigner les variables d'environnement demandées (`GROQ_API_KEY`, `PEXELS_API_KEY`) dans le tableau de bord Render — elles ne sont jamais commitées dans le dépôt.
+4. Déployer. Le build installe `requirements.txt`, puis démarre `uvicorn main:app`.
+
+Sur le plan gratuit, le service se met en veille après 15 minutes d'inactivité et redémarre (~30-50s) à la requête suivante. Le disque n'est pas persistant entre redéploiements : `static/history.json` et les vidéos générées sont perdus à chaque redeploy — normal pour un prototype, mais à garder en tête.
+
 ## Licence
 
 Projet personnel / prototype.

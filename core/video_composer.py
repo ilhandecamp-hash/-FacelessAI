@@ -42,7 +42,13 @@ DEFAULT_ORIENTATION = "portrait"
 WORDS_PER_CHUNK = 4
 MIN_SEGMENT_DURATION = 4.0
 MAX_SEGMENT_DURATION = 5.5
+
+# Police embarquée avec le projet (Inter Bold, SIL OFL) en priorité : garantit
+# un rendu de sous-titres identique quel que soit l'OS hôte (Windows en local,
+# Linux sur Render/production), sans dépendre de polices système absentes.
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FONT_CANDIDATES = [
+    os.path.join(_PROJECT_ROOT, "static", "fonts", "Inter-Bold.ttf"),
     "C:/Windows/Fonts/arialbd.ttf",
     "C:/Windows/Fonts/arial.ttf",
     "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
