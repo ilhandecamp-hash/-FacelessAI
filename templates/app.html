@@ -983,12 +983,42 @@
       }
     }
 
-    loadCurrentUser();
+    async function handlePremiumReturn() {
+      const premiumParam = new URLSearchParams(window.location.search).get("premium");
 
-    const premiumParam = new URLSearchParams(window.location.search).get("premium");
-    if (premiumParam === "success" || premiumParam === "cancelled") {
+      if (premiumParam !== "success") {
+        if (premiumParam === "cancelled") {
+          window.history.replaceState({}, "", "/app");
+        }
+        await loadCurrentUser();
+        return;
+      }
+
       window.history.replaceState({}, "", "/app");
+
+      // Le webhook Stripe active is_premium en base de façon asynchrone :
+      // il peut arriver après la redirection vers cette page. On retente
+      // /auth/refresh plusieurs fois avant d'abandonner, plutôt qu'un seul
+      // essai qui échouerait silencieusement si le webhook n'est pas encore
+      // passé (sans quoi il faudrait se déconnecter/reconnecter pour voir
+      // le badge Premium).
+      for (let attempt = 0; attempt < 5; attempt++) {
+        try {
+          const res = await fetch("/auth/refresh", { method: "POST" });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.user && data.user.is_premium) break;
+          }
+        } catch (err) {
+          console.error("Échec /auth/refresh :", err);
+        }
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+      }
+
+      await loadCurrentUser();
     }
+
+    handlePremiumReturn();
 
     document.getElementById("account-logout-btn").addEventListener("click", async () => {
       try {

@@ -221,6 +221,27 @@ async def auth_logout(request: Request):
     return {"success": True}
 
 
+@app.post("/auth/refresh")
+async def auth_refresh(request: Request):
+    """Relit l'utilisateur depuis la base et met à jour la session en cours.
+
+    Nécessaire après un paiement Stripe : le webhook active is_premium en
+    base, mais la session déjà ouverte dans le navigateur ne le reflète pas
+    tant qu'elle n'a pas été relue, sans quoi seule une déconnexion/reconnexion
+    ferait apparaître le statut Premium.
+    """
+    user = get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Connexion requise.")
+
+    fresh_user = database.get_user(user["id"])
+    if not fresh_user:
+        raise HTTPException(status_code=404, detail="Compte introuvable.")
+
+    login_user(request, fresh_user)
+    return {"user": fresh_user}
+
+
 @app.get("/auth/me")
 async def auth_me(request: Request):
     user = get_current_user(request)
