@@ -377,17 +377,6 @@
                     <!-- Boutons de durée injectés en JS -->
                   </div>
 
-                  <button
-                    type="button"
-                    id="multi-fond-toggle"
-                    aria-pressed="false"
-                    class="relative flex items-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium transition"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg>
-                    Fonds multiples
-                    <span class="premium-crown hidden absolute -top-1.5 -right-1.5 text-xs">👑</span>
-                  </button>
-
                   <label class="flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm font-medium text-ink-200 cursor-pointer" title="Couleur des sous-titres">
                     <input type="color" id="subtitle-color" value="#ffffff" class="h-5 w-5 rounded cursor-pointer border-0 bg-transparent p-0" />
                     Sous-titres
@@ -657,7 +646,6 @@
     const resultBox = document.getElementById("result-box");
     const resultVideo = document.getElementById("result-video");
     const downloadLink = document.getElementById("download-link");
-    const multiFondToggle = document.getElementById("multi-fond-toggle");
     const sujetInput = document.getElementById("sujet");
     const voiceSelect = document.getElementById("voice-select");
 
@@ -850,40 +838,6 @@
 
     loadSubtitlePositions();
 
-    let multiFond = false;
-
-    function updateMultiFondVisibility() {
-      // Fonds multiples n'est disponible que pour le format "court" : les
-      // vidéos plus longues combinées à plusieurs fonds dépassaient la
-      // limite mémoire du serveur (voir core/video_composer.py). Le
-      // masquer évite qu'un choix invisible soit silencieusement ignoré
-      // côté serveur.
-      const isCourt = selectedDuration === "court";
-      multiFondToggle.classList.toggle("hidden", !isCourt);
-      if (!isCourt && multiFond) {
-        multiFond = false;
-        updateToggleStyles();
-      }
-    }
-
-    function updateToggleStyles() {
-      multiFondToggle.setAttribute("aria-pressed", String(multiFond));
-      multiFondToggle.classList.toggle("bg-amber-400", multiFond);
-      multiFondToggle.classList.toggle("text-ink-950", multiFond);
-      multiFondToggle.classList.toggle("border-amber-400", multiFond);
-      multiFondToggle.classList.toggle("bg-white/[0.03]", !multiFond);
-      multiFondToggle.classList.toggle("text-ink-200", !multiFond);
-      multiFondToggle.classList.toggle("border-white/10", !multiFond);
-    }
-
-    multiFondToggle.addEventListener("click", () => {
-      multiFond = !multiFond;
-      updateToggleStyles();
-    });
-
-    updateToggleStyles();
-    updateMultiFondVisibility();
-
     // --- Sidebar : collapse ---
     const sidebar = document.getElementById("sidebar");
     const sidebarToggle = document.getElementById("sidebar-toggle");
@@ -894,8 +848,6 @@
     // --- Sidebar : nouvelle vidéo ---
     document.getElementById("new-video-btn").addEventListener("click", () => {
       form.reset();
-      multiFond = false;
-      updateToggleStyles();
       resultBox.classList.add("hidden");
       errorBox.classList.add("hidden");
       sujetInput.focus();
@@ -1180,13 +1132,10 @@
           updateOrientationStyles();
           updateResultVideoRatio();
         }
-        multiFond = !!entry.multi_fond;
-        updateToggleStyles();
         mobileHistoryDrawer.classList.add("hidden");
         runGeneration(
           entry.sujet,
           entry.voice || voiceSelect.value,
-          multiFond,
           entry.duration || selectedDuration,
           entry.orientation || selectedOrientation
         );
@@ -1308,7 +1257,7 @@
       return () => timeouts.forEach(clearTimeout);
     }
 
-    async function runGeneration(sujet, voice, multi, duration, orientation) {
+    async function runGeneration(sujet, voice, duration, orientation) {
       duration = duration || selectedDuration;
       orientation = orientation || selectedOrientation;
       STEPS = buildSteps(DURATION_TIME_SCALE[duration] || 1);
@@ -1325,7 +1274,7 @@
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            sujet, multi_fond: multi, voice, duration, orientation,
+            sujet, voice, duration, orientation,
             subtitle_color: subtitleColorInput.value,
             subtitle_position: selectedSubtitlePosition,
           }),
@@ -1375,7 +1324,7 @@
       e.preventDefault();
       const sujet = sujetInput.value.trim();
       if (!sujet) return;
-      runGeneration(sujet, voiceSelect.value, multiFond, selectedDuration, selectedOrientation);
+      runGeneration(sujet, voiceSelect.value, selectedDuration, selectedOrientation);
     });
 
     // --- Scroll reveal des sections plus bas sur la page ---

@@ -67,19 +67,6 @@ ORIENTATIONS = {
 
 # Nombre de fonds distincts téléchargés en mode "fonds multiples", selon la
 # durée cible : une vidéo longue mérite plus de variété pour ne pas boucler
-# trop souvent sur les mêmes fonds. Volontairement réduits par rapport à
-# l'intuition initiale : chaque fond distinct garde son propre VideoFileClip
-# ouvert en mémoire pendant le montage, et le plan gratuit Render (512 Mo de
-# RAM) ne supporte pas d'en cumuler trop pour les vidéos longues (OOM
-# silencieux, cf. "vidéo longue + fonds multiples" qui faisait planter le
-# process entier).
-MULTI_BACKGROUND_COUNTS = {
-    "court": 2,
-    "1min": 2,
-    "2min": 3,
-    "3min": 3,
-}
-
 FREE_GENERATIONS_WITHOUT_ACCOUNT = 2
 FREE_DAILY_GENERATIONS = 5
 PREMIUM_MONTHLY_PRICE_EUR = 9.99
@@ -114,7 +101,6 @@ templates = Jinja2Templates(directory="templates")
 
 class GenerateRequest(BaseModel):
     sujet: str
-    multi_fond: bool = False
     voice: str = DEFAULT_VOICE
     duration: str = DEFAULT_DURATION
     orientation: str = DEFAULT_ORIENTATION
@@ -313,15 +299,15 @@ async def generate(request: Request, payload: GenerateRequest):
                 )
 
             # Le plan gratuit connecté reste limité aux vidéos courtes en
-            # portrait, sans fonds multiples : les options avancées sont
-            # réservées à Premium (visibles dans l'UI avec un badge couronne,
-            # mais refusées ici si jamais contournées côté client).
-            if payload.duration != "court" or payload.orientation != "portrait" or payload.multi_fond:
+            # portrait : les options avancées sont réservées à Premium
+            # (visibles dans l'UI avec un badge couronne, mais refusées ici
+            # si jamais contournées côté client).
+            if payload.duration != "court" or payload.orientation != "portrait":
                 return GenerateResponse(
                     success=False,
                     requires_premium=True,
                     error=(
-                        "Les vidéos longues, le format paysage et les fonds multiples sont "
+                        "Les vidéos longues et le format paysage sont "
                         f"réservés aux membres Premium ({PREMIUM_MONTHLY_PRICE_EUR}€/mois)."
                     ),
                 )
@@ -337,20 +323,16 @@ async def generate(request: Request, payload: GenerateRequest):
     )
     subtitle_color = payload.subtitle_color if re.fullmatch(r"#[0-9a-fA-F]{6}", payload.subtitle_color) else "#ffffff"
 
-    # Fonds multiples désactivé au-delà du format "court" : combiner vidéo
-    # longue + plusieurs VideoFileClip ouverts simultanément dépasse les
-    # 512 Mo de RAM du plan gratuit Render (mesuré ~460 Mo de pic rien
-    # qu'avec 2 fonds sur une vidéo 1min, sans marge pour le reste du
-    # système — le process se faisait tuer silencieusement, sans exception
-    # Python interceptable).
-    multi_fond = payload.multi_fond and duration == "court"
-
     job_id = uuid.uuid4().hex[:12]
     audio_path = f"static/audio/{job_id}.mp3"
     output_path = f"static/output/{job_id}_final.mp4"
 
-    background_count = MULTI_BACKGROUND_COUNTS.get(duration, 4) if multi_fond else 1
-    background_paths = [f"static/videos/{job_id}_bg{i}.mp4" for i in range(background_count)]
+    # Un seul fond de vidéo par génération : plusieurs fonds distincts
+    # gardaient chacun leur propre VideoFileClip ouvert en mémoire pendant
+    # le montage, ce qui faisait planter le process (OOM silencieux, sans
+    # exception Python interceptable) même sur les cas les plus courts —
+    # trop instable pour le plan gratuit Render (512 Mo de RAM au total).
+    background_paths = [f"static/videos/{job_id}_bg0.mp4"]
 
     # 1. Génération du script (appel réseau synchrone -> thread séparé)
     try:
@@ -402,7 +384,7 @@ async def generate(request: Request, payload: GenerateRequest):
     if user:
         database.add_history_entry(
             job_id, user["id"], sujet, script_text, video_url,
-            multi_fond, payload.voice, duration, orientation,
+            False, payload.voice, duration, orientation,
         )
         if not user.get("is_premium"):
             database.increment_daily_usage(user["id"])
