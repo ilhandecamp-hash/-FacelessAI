@@ -438,6 +438,16 @@ async def admin_set_premium(request: Request, email: str, is_premium: bool, secr
     return {"success": True, "user": user}
 
 
+@app.get("/admin/list-users")
+async def admin_list_users(secret: str):
+    if not ADMIN_SECRET or secret != ADMIN_SECRET:
+        raise HTTPException(status_code=403, detail="Secret invalide.")
+
+    with database._get_conn() as conn:
+        rows = conn.execute("SELECT id, email, name, is_premium FROM users").fetchall()
+    return {"users": [dict(r) for r in rows]}
+
+
 @app.get("/voices")
 async def voices():
     return {"voices": AVAILABLE_VOICES, "default": DEFAULT_VOICE}
