@@ -278,6 +278,7 @@ async def auth_me(request: Request):
 @app.post("/generate", response_model=GenerateResponse)
 async def generate(request: Request, payload: GenerateRequest):
     user = get_current_user(request)
+    is_premium = bool(user and user.get("is_premium"))
 
     if not user:
         used = request.session.get("anonymous_generations", 0)
@@ -291,8 +292,6 @@ async def generate(request: Request, payload: GenerateRequest):
                 ),
             )
     else:
-        is_premium = bool(user.get("is_premium"))
-
         if not is_premium:
             used_today = database.get_daily_usage(user["id"])
             if used_today >= FREE_DAILY_GENERATIONS:
@@ -377,7 +376,8 @@ async def generate(request: Request, payload: GenerateRequest):
     # 4. Montage final (CPU-bound, bloquant -> thread séparé)
     try:
         await run_in_threadpool(
-            compose_video, downloaded_paths, audio_path, script_text, output_path, orientation
+            compose_video, downloaded_paths, audio_path, script_text, output_path, orientation,
+            not is_premium,
         )
     except Exception as exc:
         logger.error("Échec montage vidéo (job %s): %s\n%s", job_id, exc, traceback.format_exc())

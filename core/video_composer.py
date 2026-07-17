@@ -58,6 +58,9 @@ FONT_CANDIDATES = [
     "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
 ]
 
+WATERMARK_LOGO_PATH = os.path.join(_PROJECT_ROOT, "static", "brand", "logo-512.png")
+WATERMARK_TEXT = "Fait avec FacelessAI"
+
 
 def _load_font(size: int) -> ImageFont.FreeTypeFont:
     for path in FONT_CANDIDATES:
@@ -181,6 +184,66 @@ def _render_subtitle_image(text: str, target_width: int, font_size: int) -> np.n
     return np.array(image)
 
 
+def _render_watermark_image(target_width: int) -> np.ndarray:
+    """Dessine le logo + texte "Fait avec FacelessAI" pour les comptes gratuits.
+
+    Taille proportionnelle à la largeur de sortie plutôt que fixe : reste
+    lisible aussi bien en 540p qu'à une résolution plus grande si jamais la
+    limite mémoire du serveur est un jour levée.
+    """
+    logo_size = max(28, int(target_width * 0.09))
+    font_size = max(14, int(target_width * 0.032))
+    padding = max(8, int(target_width * 0.02))
+    gap = max(6, int(target_width * 0.015))
+
+    font = _load_font(font_size)
+    scratch = Image.new("RGBA", (10, 10), (0, 0, 0, 0))
+    scratch_draw = ImageDraw.Draw(scratch)
+    text_bbox = scratch_draw.textbbox((0, 0), WATERMARK_TEXT, font=font)
+    text_width = text_bbox[2] - text_bbox[0]
+    text_height = text_bbox[3] - text_bbox[1]
+
+    logo = Image.open(WATERMARK_LOGO_PATH).convert("RGBA").resize((logo_size, logo_size), Image.Resampling.LANCZOS)
+
+    content_width = logo_size + gap + text_width
+    content_height = max(logo_size, text_height)
+    image = Image.new("RGBA", (content_width + padding * 2, content_height + padding * 2), (0, 0, 0, 0))
+
+    # Fond semi-transparent : garde le texte lisible quel que soit le fond vidéo.
+    draw = ImageDraw.Draw(image)
+    draw.rounded_rectangle(
+        [(0, 0), (image.width, image.height)], radius=padding, fill=(10, 12, 16, 140)
+    )
+
+    image.paste(logo, (padding, padding + (content_height - logo_size) // 2), logo)
+    draw.text(
+        (padding + logo_size + gap, padding + (content_height - text_height) // 2 - text_bbox[1]),
+        WATERMARK_TEXT, font=font, fill=(255, 255, 255, 235),
+    )
+
+    return np.array(image)
+
+
+def _build_watermark_clip(total_duration: float, target_width: int, target_height: int):
+    """Watermark fixe en bas à droite pendant toute la vidéo (comptes gratuits).
+
+    Les sous-titres restent toujours centrés à l'écran (voir
+    _build_subtitle_clips) : positionner le watermark dans un coin garantit
+    qu'aucune combinaison de style de sous-titres ne peut jamais venir le
+    recouvrir, même si l'utilisateur choisit une position/couleur différente.
+    """
+    image_array = _render_watermark_image(target_width)
+    margin = max(10, int(target_width * 0.025))
+    watermark_height = image_array.shape[0]
+    watermark_width = image_array.shape[1]
+
+    return (
+        ImageClip(image_array)
+        .set_duration(total_duration)
+        .set_position((target_width - watermark_width - margin, target_height - watermark_height - margin))
+    )
+
+
 def _build_subtitle_clips(script_text: str, total_duration: float, target_width: int, font_size: int) -> list:
     """Découpe le texte en morceaux courts affichés successivement, centrés à l'écran."""
     words = script_text.split()
@@ -216,6 +279,7 @@ def compose_video(
     script_text: str,
     output_path: str,
     orientation: str = DEFAULT_ORIENTATION,
+    add_watermark: bool = False,
 ) -> str:
     """Assemble la vidéo finale : fond(s) + voix off + sous-titres centrés.
 
@@ -224,6 +288,9 @@ def compose_video(
     Si plusieurs chemins de fond sont fournis, ils sont enchaînés par segments
     de quelques secondes pour toute la durée de la vidéo (mode "fonds multiples").
     Avec un seul chemin, le comportement est identique à avant (fond unique bouclé).
+
+    `add_watermark` ajoute le filigrane "Fait avec FacelessAI" en bas à
+    droite (comptes gratuits) ; les comptes Premium ne l'ont pas.
 
     Retourne le chemin du fichier vidéo final généré.
     """
@@ -244,8 +311,12 @@ def compose_video(
 
     subtitle_clips = _build_subtitle_clips(script_text, total_duration, target_width, font_size)
 
+    overlay_clips = list(subtitle_clips)
+    if add_watermark:
+        overlay_clips.append(_build_watermark_clip(total_duration, target_width, target_height))
+
     final_clip = CompositeVideoClip(
-        [background_clip, *subtitle_clips],
+        [background_clip, *overlay_clips],
         size=(target_width, target_height),
     ).set_audio(audio_clip).set_duration(total_duration)
 
