@@ -708,6 +708,7 @@
         btn.addEventListener("click", () => {
           selectedDuration = key;
           updateDurationStyles();
+          updateMultiFondVisibility();
         });
         durationGroup.appendChild(btn);
       });
@@ -794,6 +795,20 @@
 
     let multiFond = false;
 
+    function updateMultiFondVisibility() {
+      // Fonds multiples n'est disponible que pour le format "court" : les
+      // vidéos plus longues combinées à plusieurs fonds dépassaient la
+      // limite mémoire du serveur (voir core/video_composer.py). Le
+      // masquer évite qu'un choix invisible soit silencieusement ignoré
+      // côté serveur.
+      const isCourt = selectedDuration === "court";
+      multiFondToggle.classList.toggle("hidden", !isCourt);
+      if (!isCourt && multiFond) {
+        multiFond = false;
+        updateToggleStyles();
+      }
+    }
+
     function updateToggleStyles() {
       multiFondToggle.setAttribute("aria-pressed", String(multiFond));
       multiFondToggle.classList.toggle("bg-amber-400", multiFond);
@@ -810,6 +825,7 @@
     });
 
     updateToggleStyles();
+    updateMultiFondVisibility();
 
     // --- Sidebar : collapse ---
     const sidebar = document.getElementById("sidebar");
