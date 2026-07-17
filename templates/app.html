@@ -326,9 +326,9 @@
             <div class="bg-ink-900 rounded-l-[23px] lg:rounded-r-none rounded-r-[23px] p-8 sm:p-10">
               <div id="usage-banner" class="hidden mb-6 flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.02] px-5 py-3 text-sm">
                 <span id="usage-banner-text" class="text-ink-300"></span>
-                <a href="/#section-tarifs" id="usage-banner-cta" class="hidden shrink-0 inline-flex items-center gap-1 font-semibold text-amber-400 hover:text-amber-300 transition">
+                <button type="button" id="usage-banner-cta" class="hidden shrink-0 inline-flex items-center gap-1 font-semibold text-amber-400 hover:text-amber-300 transition">
                   👑 Passer Premium
-                </a>
+                </button>
               </div>
 
               <form id="generate-form" class="flex flex-col gap-5">
@@ -939,6 +939,28 @@
       }
     }
 
+    async function startCheckout() {
+      if (!currentUser) {
+        openAuthModal("Connexion requise", "Connecte-toi pour passer Premium.");
+        return;
+      }
+      try {
+        const res = await fetch("/billing/checkout", { method: "POST" });
+        const data = await res.json();
+        if (!res.ok) {
+          errorBox.textContent = data.detail || "Impossible de démarrer le paiement pour le moment.";
+          errorBox.classList.remove("hidden");
+          return;
+        }
+        window.location.href = data.checkout_url;
+      } catch (err) {
+        errorBox.textContent = "Impossible de contacter le serveur de paiement.";
+        errorBox.classList.remove("hidden");
+      }
+    }
+
+    usageBannerCta.addEventListener("click", startCheckout);
+
     async function loadCurrentUser() {
       try {
         const res = await fetch("/auth/me");
@@ -955,9 +977,18 @@
       }
       applyAuthUI();
       applyPremiumUI();
+
+      if (window.location.hash === "#billing" && currentUser && !isPremium) {
+        startCheckout();
+      }
     }
 
     loadCurrentUser();
+
+    const premiumParam = new URLSearchParams(window.location.search).get("premium");
+    if (premiumParam === "success" || premiumParam === "cancelled") {
+      window.history.replaceState({}, "", "/app");
+    }
 
     document.getElementById("account-logout-btn").addEventListener("click", async () => {
       try {
@@ -1206,7 +1237,8 @@
               data.error || "Tu as utilisé tes générations gratuites. Connecte-toi pour continuer."
             );
           } else if (data.requires_premium) {
-            errorBox.innerHTML = `${data.error || "Cette option est réservée aux membres Premium."} <a href="/#section-tarifs" class="underline font-semibold text-amber-400 hover:text-amber-300">Passer Premium →</a>`;
+            errorBox.innerHTML = `${data.error || "Cette option est réservée aux membres Premium."} <button type="button" id="error-premium-cta" class="underline font-semibold text-amber-400 hover:text-amber-300">Passer Premium →</button>`;
+            document.getElementById("error-premium-cta").addEventListener("click", startCheckout);
             errorBox.classList.remove("hidden");
           } else {
             errorBox.textContent = data.error || "Une erreur inattendue est survenue. Veuillez réessayer.";

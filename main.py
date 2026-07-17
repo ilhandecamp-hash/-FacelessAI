@@ -44,6 +44,11 @@ from core.auth import (
     logout_user,
     oauth,
 )
+from core.payments import (
+    create_checkout_session,
+    is_stripe_configured,
+    parse_webhook_event,
+)
 from core.script_generator import DEFAULT_DURATION, DURATION_PRESETS, generate_script
 from core.video_composer import DEFAULT_ORIENTATION, compose_video
 from core.video_fetcher import fetch_background_videos
@@ -226,6 +231,7 @@ async def auth_me(request: Request):
         "discord_configured": is_discord_configured(),
         "premium_price_eur": PREMIUM_MONTHLY_PRICE_EUR,
         "free_daily_generations": FREE_DAILY_GENERATIONS,
+        "stripe_configured": is_stripe_configured(),
     }
 
     if user and not user.get("is_premium"):
@@ -400,6 +406,50 @@ async def durations():
 @app.get("/orientations")
 async def orientations():
     return {"orientations": ORIENTATIONS, "default": DEFAULT_ORIENTATION}
+
+
+# --- Paiement Premium (Stripe Checkout) ---
+
+
+@app.post("/billing/checkout")
+async def billing_checkout(request: Request):
+    user = get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Connexion requise pour passer Premium.")
+    if user.get("is_premium"):
+        raise HTTPException(status_code=400, detail="Ce compte est déjà Premium.")
+    if not is_stripe_configured():
+        raise HTTPException(status_code=503, detail="Le paiement n'est pas encore configuré sur ce serveur.")
+
+    base_url = str(request.base_url).rstrip("/")
+    checkout_url = await run_in_threadpool(
+        create_checkout_session,
+        user["id"],
+        user["email"],
+        f"{base_url}/app?premium=success",
+        f"{base_url}/app?premium=cancelled",
+    )
+    return {"checkout_url": checkout_url}
+
+
+@app.post("/billing/webhook")
+async def billing_webhook(request: Request):
+    payload = await request.body()
+    signature = request.headers.get("stripe-signature", "")
+
+    try:
+        event = parse_webhook_event(payload, signature)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Signature webhook invalide.")
+
+    if event["type"] == "checkout.session.completed":
+        session = event["data"]["object"]
+        user_id = session.get("client_reference_id")
+        if user_id:
+            database.set_premium(user_id, True)
+            logger.info("Premium activé pour l'utilisateur %s (paiement Stripe confirmé)", user_id)
+
+    return {"received": True}
 
 
 @app.get("/health")

@@ -26,5 +26,13 @@ services:
         sync: false
       - key: DISCORD_CLIENT_SECRET
         sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_PUBLISHABLE_KEY
+        sync: false
+      - key: STRIPE_PRICE_ID
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
       - key: SESSION_SECRET_KEY
         generateValue: true
