@@ -1,31 +1,56 @@
-"""Base de données SQLite : utilisateurs et historique de générations par utilisateur.
+"""Base de données PostgreSQL (Supabase) : utilisateurs et historique par utilisateur.
 
-Un simple fichier .db suffit pour ce prototype : pas de serveur de base de
-données à gérer, et SQLite gère très bien la concurrence en lecture pour un
-trafic modeste. Migrable vers PostgreSQL plus tard si le site grossit.
+Utilise Supabase (PostgreSQL gratuit) plutôt qu'un fichier SQLite local : le
+plan gratuit Render n'offre aucun disque persistant, donc un fichier SQLite
+serait entièrement effacé à chaque redéploiement — inacceptable une fois que
+de vrais paiements Stripe activent le statut Premium des comptes.
 """
 
-import sqlite3
+import os
 import threading
 from contextlib import contextmanager
 from datetime import datetime, timezone
 
-DB_PATH = "static/app.db"
+import psycopg2
+import psycopg2.extras
+
+DATABASE_URL = os.getenv("DATABASE_URL", "")
 
 _lock = threading.Lock()
 
 
-def _connect() -> sqlite3.Connection:
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys = ON")
+def _connect() -> psycopg2.extensions.connection:
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=psycopg2.extras.RealDictCursor)
     return conn
+
+
+class _ConnWrapper:
+    """Adapte psycopg2 à l'API sqlite3 utilisée dans ce module (conn.execute(...)).
+
+    Convertit aussi les placeholders `?` (style sqlite3) en `%s` (style
+    psycopg2) pour ne pas avoir à récrire chaque requête SQL du projet.
+    """
+
+    def __init__(self, conn: psycopg2.extensions.connection):
+        self._conn = conn
+
+    def execute(self, query: str, params: tuple = ()):
+        cur = self._conn.cursor()
+        cur.execute(query.replace("?", "%s"), params)
+        return cur
+
+    def commit(self):
+        self._conn.commit()
+
+    def close(self):
+        self._conn.close()
 
 
 @contextmanager
 def _get_conn():
     with _lock:
-        conn = _connect()
+        raw_conn = _connect()
+        conn = _ConnWrapper(raw_conn)
         try:
             yield conn
             conn.commit()
@@ -42,39 +67,38 @@ def init_db() -> None:
                 email TEXT UNIQUE NOT NULL,
                 name TEXT NOT NULL,
                 picture TEXT,
-                is_premium INTEGER NOT NULL DEFAULT 0,
+                is_premium BOOLEAN NOT NULL DEFAULT FALSE,
                 created_at TEXT NOT NULL
             )
         """)
-        # Migration douce : ajoute la colonne si la base existait déjà sans elle.
-        existing_cols = {row["name"] for row in conn.execute("PRAGMA table_info(users)")}
-        if "is_premium" not in existing_cols:
-            conn.execute("ALTER TABLE users ADD COLUMN is_premium INTEGER NOT NULL DEFAULT 0")
 
+        # Contraintes FK déclarées DEFERRABLE INITIALLY DEFERRED : le
+        # changement d'id d'un utilisateur lors de la fusion de comptes
+        # (upsert_user) touche users.id puis history.user_id/daily_usage.user_id
+        # dans la même transaction, dans un ordre qui violerait la contrainte
+        # à un moment ou un autre si elle était vérifiée immédiatement.
         conn.execute("""
             CREATE TABLE IF NOT EXISTS history (
                 job_id TEXT PRIMARY KEY,
-                user_id TEXT NOT NULL,
+                user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED,
                 sujet TEXT NOT NULL,
                 script TEXT NOT NULL,
                 video_url TEXT NOT NULL,
-                multi_fond INTEGER NOT NULL,
+                multi_fond BOOLEAN NOT NULL,
                 voice TEXT NOT NULL,
                 duration TEXT NOT NULL,
                 orientation TEXT NOT NULL,
-                created_at TEXT NOT NULL,
-                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                created_at TEXT NOT NULL
             )
         """)
         # Compte les générations par utilisateur et par jour calendaire (UTC),
         # pour appliquer le quota gratuit de 5 vidéos/jour.
         conn.execute("""
             CREATE TABLE IF NOT EXISTS daily_usage (
-                user_id TEXT NOT NULL,
+                user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED,
                 usage_date TEXT NOT NULL,
                 count INTEGER NOT NULL DEFAULT 0,
-                PRIMARY KEY (user_id, usage_date),
-                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                PRIMARY KEY (user_id, usage_date)
             )
         """)
 
@@ -97,12 +121,9 @@ def upsert_user(user_id: str, email: str, name: str, picture: str | None) -> dic
         if existing:
             old_id = existing["id"]
             if old_id != user_id:
-                # Changer l'id d'un utilisateur référencé par des lignes
-                # d'historique nécessite de désactiver temporairement les
-                # contraintes FK : ni "renommer users.id" ni "réattacher
-                # history.user_id" ne peut se faire en premier sans violer
-                # la contrainte dans un sens ou dans l'autre.
-                conn.execute("PRAGMA foreign_keys = OFF")
+                # Renomme l'id de l'utilisateur et répercute la référence
+                # sur ses lignes d'historique/usage (ON UPDATE CASCADE
+                # n'étant pas déclaré, on met à jour explicitement).
                 conn.execute(
                     "UPDATE users SET id = ?, name = ?, picture = ? WHERE email = ?",
                     (user_id, name, picture, email),
@@ -113,7 +134,6 @@ def upsert_user(user_id: str, email: str, name: str, picture: str | None) -> dic
                 conn.execute(
                     "UPDATE daily_usage SET user_id = ? WHERE user_id = ?", (user_id, old_id)
                 )
-                conn.execute("PRAGMA foreign_keys = ON")
             else:
                 conn.execute(
                     "UPDATE users SET name = ?, picture = ? WHERE email = ?",
@@ -126,15 +146,13 @@ def upsert_user(user_id: str, email: str, name: str, picture: str | None) -> dic
             )
 
         row = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
-        user = dict(row)
-        user["is_premium"] = bool(user["is_premium"])
-        return user
+        return dict(row)
 
 
 def set_premium(user_id: str, is_premium: bool) -> None:
     """Active/désactive le statut premium d'un utilisateur (ex: après paiement Stripe)."""
     with _get_conn() as conn:
-        conn.execute("UPDATE users SET is_premium = ? WHERE id = ?", (int(is_premium), user_id))
+        conn.execute("UPDATE users SET is_premium = ? WHERE id = ?", (is_premium, user_id))
 
 
 def _today() -> str:
@@ -157,7 +175,7 @@ def increment_daily_usage(user_id: str) -> int:
         conn.execute(
             """
             INSERT INTO daily_usage (user_id, usage_date, count) VALUES (?, ?, 1)
-            ON CONFLICT(user_id, usage_date) DO UPDATE SET count = count + 1
+            ON CONFLICT (user_id, usage_date) DO UPDATE SET count = daily_usage.count + 1
             """,
             (user_id, _today()),
         )
@@ -171,11 +189,7 @@ def increment_daily_usage(user_id: str) -> int:
 def get_user(user_id: str) -> dict | None:
     with _get_conn() as conn:
         row = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
-        if not row:
-            return None
-        user = dict(row)
-        user["is_premium"] = bool(user["is_premium"])
-        return user
+        return dict(row) if row else None
 
 
 def add_history_entry(
@@ -198,7 +212,7 @@ def add_history_entry(
             """,
             (
                 job_id, user_id, sujet, script, video_url,
-                int(multi_fond), voice, duration, orientation,
+                multi_fond, voice, duration, orientation,
                 datetime.now(timezone.utc).isoformat(),
             ),
         )
@@ -210,7 +224,7 @@ def get_history_for_user(user_id: str, limit: int = 50) -> list[dict]:
             "SELECT * FROM history WHERE user_id = ? ORDER BY created_at DESC LIMIT ?",
             (user_id, limit),
         ).fetchall()
-        return [dict(r) | {"multi_fond": bool(r["multi_fond"])} for r in rows]
+        return [dict(r) for r in rows]
 
 
 def get_history_entry(job_id: str, user_id: str) -> dict | None:

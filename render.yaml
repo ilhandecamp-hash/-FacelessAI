@@ -38,3 +38,5 @@ services:
         generateValue: true
       - key: SESSION_SECRET_KEY
         generateValue: true
+      - key: DATABASE_URL
+        sync: false
