@@ -78,6 +78,12 @@ PREMIUM_MONTHLY_PRICE_EUR = 9.99
 # (ou équivalent) soit branché.
 DEVELOPER_EMAILS = {"ilhandecamp@gmail.com"}
 
+# Secret pour la route d'administration /admin/set-premium (voir plus bas) :
+# permet de changer le statut Premium d'un compte sans accès Shell direct au
+# serveur (indisponible sur le plan gratuit Render). Doit être défini via la
+# variable d'environnement ADMIN_SECRET sur Render, jamais codé en dur.
+ADMIN_SECRET = os.getenv("ADMIN_SECRET", "")
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("videoia")
 
@@ -412,6 +418,24 @@ async def delete_history_entry(request: Request, job_id: str):
                 pass
 
     return {"success": True}
+
+
+# --- Administration (accès Shell indisponible sur le plan gratuit Render) ---
+
+
+@app.post("/admin/set-premium")
+async def admin_set_premium(request: Request, email: str, is_premium: bool, secret: str):
+    if not ADMIN_SECRET or secret != ADMIN_SECRET:
+        raise HTTPException(status_code=403, detail="Secret invalide.")
+
+    with database._get_conn() as conn:
+        row = conn.execute("SELECT id FROM users WHERE email = ?", (email,)).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail=f"Aucun compte avec l'email {email}.")
+
+    database.set_premium(row["id"], is_premium)
+    user = database.get_user(row["id"])
+    return {"success": True, "user": user}
 
 
 @app.get("/voices")

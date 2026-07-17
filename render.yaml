@@ -34,5 +34,7 @@ services:
         sync: false
       - key: STRIPE_WEBHOOK_SECRET
         sync: false
+      - key: ADMIN_SECRET
+        generateValue: true
       - key: SESSION_SECRET_KEY
         generateValue: true
