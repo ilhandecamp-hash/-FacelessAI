@@ -32,13 +32,14 @@ from PIL import Image, ImageDraw, ImageFont
 if not hasattr(Image, "ANTIALIAS"):
     Image.ANTIALIAS = Image.Resampling.LANCZOS
 
-# Dimensions de sortie selon l'orientation choisie. Volontairement en dessous
-# du Full HD : le plan gratuit Render (512 Mo de RAM) ne supporte pas de
-# composer/encoder des frames 1080p sans faire tuer le process par l'hôte
-# (OOM silencieux, sans exception Python). 720p reste net sur mobile.
+# Dimensions de sortie selon l'orientation choisie. Volontairement bien en
+# dessous du Full HD : le plan gratuit Render (512 Mo de RAM) ne supporte pas
+# de composer/encoder des frames 1080p (voire 720p sur les vidéos longues)
+# sans faire tuer le process par l'hôte (OOM silencieux, sans exception
+# Python). 540p reste tout à fait net sur mobile/petit écran.
 ORIENTATION_DIMENSIONS = {
-    "portrait": (720, 1280),
-    "paysage": (1280, 720),
+    "portrait": (540, 960),
+    "paysage": (960, 540),
 }
 DEFAULT_ORIENTATION = "portrait"
 
@@ -231,8 +232,8 @@ def compose_video(
     )
     # Le texte occupe moins de hauteur relative en paysage : une police plus
     # petite garde des sous-titres proportionnés plutôt qu'écrasants. Tailles
-    # recalibrées au même ratio qu'avant le passage des sorties en 720p.
-    font_size = 46 if orientation == "portrait" else 37
+    # recalibrées au même ratio qu'avant le passage des sorties en 540p.
+    font_size = 35 if orientation == "portrait" else 28
 
     audio_clip = AudioFileClip(audio_path)
     total_duration = audio_clip.duration
