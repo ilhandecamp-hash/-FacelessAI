@@ -13,6 +13,7 @@ connecté, l'historique des générations est privé (core.database, SQLite).
 
 import logging
 import os
+import re
 import traceback
 import uuid
 
@@ -50,7 +51,12 @@ from core.payments import (
     parse_webhook_event,
 )
 from core.script_generator import DEFAULT_DURATION, DURATION_PRESETS, generate_script
-from core.video_composer import DEFAULT_ORIENTATION, compose_video
+from core.video_composer import (
+    DEFAULT_ORIENTATION,
+    DEFAULT_SUBTITLE_POSITION,
+    SUBTITLE_POSITIONS,
+    compose_video,
+)
 from core.video_fetcher import fetch_background_videos
 from core.voice_generator import AVAILABLE_VOICES, DEFAULT_VOICE, generate_voice
 
@@ -112,6 +118,8 @@ class GenerateRequest(BaseModel):
     voice: str = DEFAULT_VOICE
     duration: str = DEFAULT_DURATION
     orientation: str = DEFAULT_ORIENTATION
+    subtitle_color: str = "#ffffff"
+    subtitle_position: str = "centre"
 
 
 class GenerateResponse(BaseModel):
@@ -324,6 +332,10 @@ async def generate(request: Request, payload: GenerateRequest):
 
     duration = payload.duration if payload.duration in DURATION_PRESETS else DEFAULT_DURATION
     orientation = payload.orientation if payload.orientation in ORIENTATIONS else DEFAULT_ORIENTATION
+    subtitle_position = (
+        payload.subtitle_position if payload.subtitle_position in SUBTITLE_POSITIONS else DEFAULT_SUBTITLE_POSITION
+    )
+    subtitle_color = payload.subtitle_color if re.fullmatch(r"#[0-9a-fA-F]{6}", payload.subtitle_color) else "#ffffff"
 
     # Fonds multiples désactivé au-delà du format "court" : combiner vidéo
     # longue + plusieurs VideoFileClip ouverts simultanément dépasse les
@@ -377,7 +389,7 @@ async def generate(request: Request, payload: GenerateRequest):
     try:
         await run_in_threadpool(
             compose_video, downloaded_paths, audio_path, script_text, output_path, orientation,
-            not is_premium,
+            not is_premium, subtitle_color, subtitle_position,
         )
     except Exception as exc:
         logger.error("Échec montage vidéo (job %s): %s\n%s", job_id, exc, traceback.format_exc())
@@ -474,6 +486,11 @@ async def durations():
 @app.get("/orientations")
 async def orientations():
     return {"orientations": ORIENTATIONS, "default": DEFAULT_ORIENTATION}
+
+
+@app.get("/subtitle-positions")
+async def subtitle_positions():
+    return {"positions": list(SUBTITLE_POSITIONS), "default": DEFAULT_SUBTITLE_POSITION}
 
 
 # --- Paiement Premium (Stripe Checkout) ---

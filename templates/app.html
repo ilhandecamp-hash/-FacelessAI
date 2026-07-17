@@ -387,6 +387,15 @@
                     Fonds multiples
                     <span class="premium-crown hidden absolute -top-1.5 -right-1.5 text-xs">👑</span>
                   </button>
+
+                  <label class="flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm font-medium text-ink-200 cursor-pointer" title="Couleur des sous-titres">
+                    <input type="color" id="subtitle-color" value="#ffffff" class="h-5 w-5 rounded cursor-pointer border-0 bg-transparent p-0" />
+                    Sous-titres
+                  </label>
+
+                  <div id="subtitle-position-group" class="flex items-center gap-1.5">
+                    <!-- Boutons de position injectés en JS -->
+                  </div>
                 </div>
               </form>
 
@@ -792,6 +801,54 @@
     }
 
     loadOrientations();
+
+    const subtitleColorInput = document.getElementById("subtitle-color");
+    const subtitlePositionGroup = document.getElementById("subtitle-position-group");
+    let selectedSubtitlePosition = "centre";
+
+    const SUBTITLE_POSITION_LABELS = { haut: "Haut", centre: "Centre", bas: "Bas" };
+
+    function updateSubtitlePositionStyles() {
+      subtitlePositionGroup.querySelectorAll(".subtitle-position-chip").forEach((btn) => {
+        const isActive = btn.dataset.position === selectedSubtitlePosition;
+        btn.classList.toggle("bg-amber-400", isActive);
+        btn.classList.toggle("text-ink-950", isActive);
+        btn.classList.toggle("border-amber-400", isActive);
+        btn.classList.toggle("bg-white/[0.02]", !isActive);
+        btn.classList.toggle("text-ink-200", !isActive);
+        btn.classList.toggle("border-white/10", !isActive);
+      });
+    }
+
+    function renderSubtitlePositionButtons(positions, defaultKey) {
+      subtitlePositionGroup.innerHTML = "";
+      selectedSubtitlePosition = defaultKey || "centre";
+      positions.forEach((key) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.dataset.position = key;
+        btn.className = "subtitle-position-chip rounded-lg border px-2.5 py-2 text-xs font-medium transition";
+        btn.textContent = SUBTITLE_POSITION_LABELS[key] || key;
+        btn.addEventListener("click", () => {
+          selectedSubtitlePosition = key;
+          updateSubtitlePositionStyles();
+        });
+        subtitlePositionGroup.appendChild(btn);
+      });
+      updateSubtitlePositionStyles();
+    }
+
+    async function loadSubtitlePositions() {
+      try {
+        const res = await fetch("/subtitle-positions");
+        const data = await res.json();
+        renderSubtitlePositionButtons(data.positions, data.default);
+      } catch (err) {
+        renderSubtitlePositionButtons(["haut", "centre", "bas"], "centre");
+      }
+    }
+
+    loadSubtitlePositions();
 
     let multiFond = false;
 
@@ -1267,7 +1324,11 @@
         const response = await fetch("/generate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sujet, multi_fond: multi, voice, duration, orientation }),
+          body: JSON.stringify({
+            sujet, multi_fond: multi, voice, duration, orientation,
+            subtitle_color: subtitleColorInput.value,
+            subtitle_position: selectedSubtitlePosition,
+          }),
         });
 
         const data = await response.json();

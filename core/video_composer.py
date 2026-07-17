@@ -156,10 +156,21 @@ def _wrap_text(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.FreeTypeFon
     return lines
 
 
-def _render_subtitle_image(text: str, target_width: int, font_size: int) -> np.ndarray:
+def _hex_to_rgb(hex_color: str) -> tuple[int, int, int]:
+    hex_color = hex_color.lstrip("#")
+    if len(hex_color) != 6:
+        return (255, 255, 255)
+    try:
+        return tuple(int(hex_color[i:i + 2], 16) for i in (0, 2, 4))
+    except ValueError:
+        return (255, 255, 255)
+
+
+def _render_subtitle_image(text: str, target_width: int, font_size: int, color: str = "#ffffff") -> np.ndarray:
     """Dessine le texte du sous-titre (fond transparent, contour noir) via Pillow."""
     font = _load_font(font_size)
     max_text_width = target_width - int(target_width * 0.12)
+    fill_color = _hex_to_rgb(color)
 
     scratch = Image.new("RGBA", (10, 10), (0, 0, 0, 0))
     scratch_draw = ImageDraw.Draw(scratch)
@@ -177,7 +188,7 @@ def _render_subtitle_image(text: str, target_width: int, font_size: int) -> np.n
         x = (target_width - text_width) / 2
         y = i * line_height + 20
         draw.text(
-            (x, y), line, font=font, fill="white",
+            (x, y), line, font=font, fill=fill_color,
             stroke_width=stroke_width, stroke_fill="black",
         )
 
@@ -244,11 +255,31 @@ def _build_watermark_clip(total_duration: float, target_width: int, target_heigh
     )
 
 
-def _build_subtitle_clips(script_text: str, total_duration: float, target_width: int, font_size: int) -> list:
-    """Découpe le texte en morceaux courts affichés successivement, centrés à l'écran."""
+SUBTITLE_POSITIONS = ("haut", "centre", "bas")
+DEFAULT_SUBTITLE_POSITION = "centre"
+
+# Marge en fraction de la hauteur totale, pour "haut"/"bas" : évite de coller
+# le texte au bord de l'écran (et, pour "bas", laisse de la place au-dessus
+# du watermark éventuel plutôt que de risquer un chevauchement visuel).
+SUBTITLE_VERTICAL_MARGIN_RATIO = 0.12
+
+
+def _build_subtitle_clips(
+    script_text: str,
+    total_duration: float,
+    target_width: int,
+    target_height: int,
+    font_size: int,
+    color: str = "#ffffff",
+    position: str = DEFAULT_SUBTITLE_POSITION,
+) -> list:
+    """Découpe le texte en morceaux courts affichés successivement à l'écran."""
     words = script_text.split()
     if not words:
         return []
+
+    if position not in SUBTITLE_POSITIONS:
+        position = DEFAULT_SUBTITLE_POSITION
 
     chunks = [
         " ".join(words[i:i + WORDS_PER_CHUNK])
@@ -260,14 +291,19 @@ def _build_subtitle_clips(script_text: str, total_duration: float, target_width:
 
     for index, chunk_text in enumerate(chunks):
         start_time = index * chunk_duration
-        image_array = _render_subtitle_image(chunk_text, target_width, font_size)
+        image_array = _render_subtitle_image(chunk_text, target_width, font_size, color)
 
-        img_clip = (
-            ImageClip(image_array)
-            .set_start(start_time)
-            .set_duration(chunk_duration)
-            .set_position("center")
-        )
+        img_clip = ImageClip(image_array).set_start(start_time).set_duration(chunk_duration)
+
+        if position == "bas":
+            y = int(target_height * (1 - SUBTITLE_VERTICAL_MARGIN_RATIO)) - img_clip.h
+            img_clip = img_clip.set_position(("center", y))
+        elif position == "haut":
+            y = int(target_height * SUBTITLE_VERTICAL_MARGIN_RATIO)
+            img_clip = img_clip.set_position(("center", y))
+        else:
+            img_clip = img_clip.set_position("center")
+
         subtitle_clips.append(img_clip)
 
     return subtitle_clips
@@ -280,8 +316,10 @@ def compose_video(
     output_path: str,
     orientation: str = DEFAULT_ORIENTATION,
     add_watermark: bool = False,
+    subtitle_color: str = "#ffffff",
+    subtitle_position: str = DEFAULT_SUBTITLE_POSITION,
 ) -> str:
-    """Assemble la vidéo finale : fond(s) + voix off + sous-titres centrés.
+    """Assemble la vidéo finale : fond(s) + voix off + sous-titres.
 
     `orientation` vaut "portrait" (1080x1920, par défaut) ou "paysage" (1920x1080).
 
@@ -291,6 +329,9 @@ def compose_video(
 
     `add_watermark` ajoute le filigrane "Fait avec FacelessAI" en bas à
     droite (comptes gratuits) ; les comptes Premium ne l'ont pas.
+
+    `subtitle_color` (hex, ex "#ffffff") et `subtitle_position` ("haut",
+    "centre" ou "bas") personnalisent l'apparence des sous-titres.
 
     Retourne le chemin du fichier vidéo final généré.
     """
@@ -309,7 +350,10 @@ def compose_video(
         background_video_paths, total_duration, target_width, target_height
     )
 
-    subtitle_clips = _build_subtitle_clips(script_text, total_duration, target_width, font_size)
+    subtitle_clips = _build_subtitle_clips(
+        script_text, total_duration, target_width, target_height, font_size,
+        subtitle_color, subtitle_position,
+    )
 
     overlay_clips = list(subtitle_clips)
     if add_watermark:
